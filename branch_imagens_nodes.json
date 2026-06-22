@@ -1,0 +1,243 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\n// === Marcar Audio (Run Once for Each Item) ===\n// O node de TTS (responseFormat=file) zera o json, deixando so o binario \"data\".\n// Aqui reanexamos o numero do clip (e metadados) usando o item pareado de \"item lists\",\n// para permitir o pareamento audio<->imagem por CLIP (e nao por posicao fragil).\nconst src = $('item lists').item.json || {};\nreturn {\n  json: {\n    clip: Number(src.clip),\n    texto_narracao: src.texto_narracao || '',\n    articleTitle: src.articleTitle || '',\n    duration: Number(src.duration || 4)\n  },\n  binary: $input.item.binary\n};\n"
+      },
+      "id": "a1b2c3d4-0004-4a04-8a04-marcaraudio004",
+      "name": "Marcar Audio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// === Agregar Tarefas ===\n// Coleta TODOS os taskUUID gerados (1 por clip) em UM unico item de controle.\n// Isso permite fazer o polling de TODAS as imagens de uma vez, sem perder itens\n// no padrao IF+Wait (que descartava clips prontos em rodadas diferentes).\nconst src = $('Parse Generated Prompts').all();\nconst tasks = [];\nfor (let i = 0; i < src.length; i++) {\n  const j = src[i].json || {};\n  tasks.push({\n    clip: Number(j.clip != null ? j.clip : (i + 1)),\n    taskUUID: j.taskUUID,\n    texto_narracao: j.texto_narracao || '',\n    articleTitle: j.articleTitle || '',\n    duration: Number(j.duration || 4)\n  });\n}\nreturn [{ json: { tasks: tasks, total: tasks.length } }];\n"
+      },
+      "id": "a1b2c3d4-0001-4a01-8a01-aggregartasks01",
+      "name": "Agregar Tarefas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.runware.ai/v1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(($('Agregar Tarefas').first().json.tasks || []).map(function(t){ return { taskType: 'getResponse', taskUUID: t.taskUUID }; })) }}",
+        "options": {}
+      },
+      "id": "a8373b0a-60a8-455e-8bad-1b4edab4c58b",
+      "name": "Verificar Imagens",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1980,
+        560
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "RUNWARE_CRED_PLACEHOLDER",
+          "name": "RunWare API"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// === Processar Polling ===\n// Le a resposta em LOTE do RunWare (getResponse de TODOS os taskUUID) e separa\n// quais imagens ja ficaram prontas (tem imageURL) e quais ainda estao pendentes.\n// Reconsulta TODOS os taskUUID a cada rodada (getResponse e idempotente: o RunWare\n// guarda o resultado), entao nao precisamos acumular estado entre as voltas do loop.\nconst resp = $input.first().json || {};\nlet data = [];\nif (Array.isArray(resp.data)) data = resp.data;\nelse if (resp.body && Array.isArray(resp.body.data)) data = resp.body.data;\nelse if (Array.isArray(resp)) data = resp;\n\nconst urlByUUID = {};\nfor (let i = 0; i < data.length; i++) {\n  const d = data[i] || {};\n  if (!d.taskUUID) continue;\n  let url = d.imageURL || d.imageUrl || '';\n  if (!url && Array.isArray(d.images) && d.images[0]) {\n    url = d.images[0].imageURL || d.images[0].imageUrl || '';\n  }\n  if (url) urlByUUID[d.taskUUID] = url;\n}\n\nconst tasks = ($('Agregar Tarefas').first().json.tasks) || [];\nconst ready = [];\nconst pending = [];\nfor (let i = 0; i < tasks.length; i++) {\n  const t = tasks[i];\n  const url = urlByUUID[t.taskUUID];\n  if (url) ready.push(Object.assign({}, t, { imageURL: url }));\n  else pending.push(t);\n}\n\nreturn [{\n  json: {\n    ready: ready,\n    pending: pending,\n    readyCount: ready.length,\n    pendingCount: pending.length,\n    poll_round: ($runIndex || 0)\n  }\n}];\n"
+      },
+      "id": "a1b2c3d4-0002-4a02-8a02-processpolling2",
+      "name": "Processar Polling",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-pending-zero-0001",
+              "leftValue": "={{ $json.pendingCount }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "cond-round-limit-0002",
+              "leftValue": "={{ $json.poll_round }}",
+              "rightValue": 18,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "df410c45-d005-453c-b851-ecac03f1e246",
+      "name": "Imagens Prontas?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 10,
+        "unit": "seconds"
+      },
+      "id": "54bdab28-a412-4bd8-b79a-3c06a024f2b2",
+      "name": "Wait 10s More",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2420,
+        780
+      ],
+      "webhookId": "dbc2f081-4feb-420c-8c3e-210dbb401f36"
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// === Distribuir Imagens ===\n// Converte o item de controle (com o array \"ready\") de volta em N itens,\n// um por clip pronto, em ordem crescente de clip. Cada item leva a imageURL\n// para o download e os metadados para o pareamento por clip no Merge.\nconst j = $input.first().json || {};\nconst ready = (j.ready || []).slice();\nready.sort(function (a, b) { return (Number(a.clip) || 0) - (Number(b.clip) || 0); });\nif (ready.length === 0) {\n  throw new Error('Distribuir Imagens: nenhuma imagem ficou pronta no RunWare apos o polling.');\n}\nreturn ready.map(function (t) {\n  return {\n    json: {\n      clip: Number(t.clip),\n      imageURL: t.imageURL,\n      texto_narracao: t.texto_narracao || '',\n      articleTitle: t.articleTitle || '',\n      duration: Number(t.duration || 4)\n    }\n  };\n});\n"
+      },
+      "id": "a1b2c3d4-0003-4a03-8a03-distribuirimg03",
+      "name": "Distribuir Imagens",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\n// === Baixar Foto (Run Once for Each Item) ===\n// Baixa a imagem gerada (URL publica do RunWare) para o binario \"foto\",\n// preservando o json (clip, texto, etc.) para o pareamento por clip no Merge.\n// Async via wrapper Promise manual sobre child_process.exec (nao bloqueia o event loop).\n// Sem modulos bloqueados e sem sequencias de escape em strings (paste-safe).\nconst fs = require('fs');\nconst { exec } = require('child_process');\nfunction execAsync(cmd, opts) {\n  return new Promise(function (resolve, reject) {\n    exec(cmd, opts, function (err, stdout, stderr) {\n      if (err) { reject(err); } else { resolve({ stdout: stdout, stderr: stderr }); }\n    });\n  });\n}\nconst TMP = '/tmp';\nconst UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';\nconst j = $input.item.json || {};\nconst clipNum = Number(j.clip) || (($itemIndex || 0) + 1);\nconst url = String(j.imageURL || '').trim();\nif (!url) {\n  return { json: Object.assign({}, j, { clip: clipNum, skipped: true }) };\n}\nconst imgPath = TMP + '/foto_' + clipNum + '.webp';\nawait execAsync('wget -q --user-agent=\"' + UA + '\" -O \"' + imgPath + '\" \"' + url + '\"', { timeout: 120000, maxBuffer: 1024 * 1024 * 64 });\nconst buf = fs.readFileSync(imgPath);\nreturn {\n  json: Object.assign({}, j, { clip: clipNum }),\n  binary: { foto: await this.helpers.prepareBinaryData(buf, 'foto_' + clipNum + '.webp', 'image/webp') }\n};\n"
+      },
+      "id": "a34e11b3-0a55-4726-9cd8-870195aa06af",
+      "name": "Baixar Foto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        460
+      ]
+    }
+  ],
+  "connections": {
+    "Agregar Tarefas": {
+      "main": [
+        [
+          {
+            "node": "Wait 50s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Imagens": {
+      "main": [
+        [
+          {
+            "node": "Processar Polling",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Polling": {
+      "main": [
+        [
+          {
+            "node": "Imagens Prontas?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Imagens Prontas?": {
+      "main": [
+        [
+          {
+            "node": "Distribuir Imagens",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 10s More",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 10s More": {
+      "main": [
+        [
+          {
+            "node": "Verificar Imagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Distribuir Imagens": {
+      "main": [
+        [
+          {
+            "node": "Baixar Foto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar Audio": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
