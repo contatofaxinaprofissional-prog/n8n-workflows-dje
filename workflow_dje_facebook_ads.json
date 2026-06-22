@@ -268,7 +268,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ contents: [ { parts: [ { text: ('Narre em tom de comercial premium, persuasivo e ' + ($('Formulario de Video').item.json['Estilo Emocional'] || 'confiante') + ', com ritmo dinâmico e dicção masculina de autoridade: ' + ($json.texto_narracao || '')) } ] } ], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: ($('Formulario de Video').item.json['Voz'] || 'Orus') } } } } }) }}",
+        "jsonBody": "={{ JSON.stringify({ contents: [ { parts: [ { text: ('Narre em tom de comercial premium, persuasivo e ' + ($('Formulario de Video').first().json['Estilo Emocional'] || 'confiante') + ', com ritmo dinâmico e dicção masculina de autoridade: ' + ($json.texto_narracao || '')) } ] } ], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: ($('Formulario de Video').first().json['Voz'] || 'Orus') } } } } }) }}",
         "options": {
           "batching": {
             "batch": {
