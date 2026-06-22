@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1080, height=1920, initial-scale=1" />
+  <title>DJE - Composicao HyperFrames (vertical 9:16)</title>
+  <!--
+    ==========================================================================
+    DJE - Composicao HyperFrames / HeyGen Cloud Rendering (vertical 1080x1920).
+
+    PRIMEIRA VERSAO - A SER AJUSTADA APOS O PRIMEIRO RENDER REAL.
+    Nao tivemos acesso a documentacao oficial do framework de composicao da
+    HyperFrames (o site da HeyGen bloqueou o acesso com 403). Portanto esta
+    composicao foi escrita de forma DEFENSIVA e AUTOSSUFICIENTE:
+
+      - Roda standalone em qualquer navegador (abra o index.html direto).
+      - Le os valores padrao do atributo data-composition-variables do
+        elemento raiz (#composition). A HeyGen sobrescreve esses valores com
+        o objeto "variables" enviado no corpo do render.
+      - NAO depende de nenhuma CDN externa no momento do render (CSS/JS puro).
+      - Toda a animacao e dirigida por UM relogio unico getTime() que prefere
+        um tempo de seek global (caso a HyperFrames exponha um) e cai para o
+        currentTime do <audio>. Evitamos Date.now()/wall-clock para que a
+        renderizacao seja determinista e seek-driven (frame a frame).
+
+    Quando tivermos o primeiro render real, ajustar:
+      - O nome exato do hook de tempo/seek exposto pela HyperFrames (ver
+        bindRenderClock(): hoje suportamos varias convencoes comuns).
+      - Detalhes finos de easing/posicionamento das legendas e do CTA.
+    ==========================================================================
+  -->
+  <style>
+    :root {
+      --w: 1080px;
+      --h: 1920px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: var(--w);
+      height: var(--h);
+      background: #000;
+      overflow: hidden;
+      font-family: "Helvetica Neue", Arial, "Segoe UI", sans-serif;
+    }
+    #composition {
+      position: relative;
+      width: var(--w);
+      height: var(--h);
+      background: #000;
+      overflow: hidden;
+    }
+    /* Camada de cenas (imagens com Ken Burns) */
+    .scene {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      will-change: opacity, transform;
+    }
+    .scene .bg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      background-size: cover;
+      background-position: center center;
+      background-repeat: no-repeat;
+      will-change: transform;
+      transform-origin: center center;
+    }
+    /* Vinheta para dar profundidade e ajudar a legibilidade da legenda */
+    .vignette {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.65) 100%);
+    }
+    /* Legenda estilo CapCut (palavra a palavra) */
+    #caption {
+      position: absolute;
+      left: 60px;
+      right: 60px;
+      bottom: 360px;
+      text-align: center;
+      z-index: 30;
+    }
+    #caption .word {
+      display: inline-block;
+      margin: 0 8px 10px 8px;
+      font-size: 76px;
+      line-height: 1.18;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: #ffffff;
+      text-transform: none;
+      opacity: 0;
+      transform: translateY(18px) scale(0.92);
+      transition: opacity 0.12s linear, transform 0.12s ease-out;
+      /* Contorno + sombra para legibilidade sobre qualquer imagem */
+      text-shadow:
+        0 0 2px #000,
+        2px 2px 0 #000,
+        -2px 2px 0 #000,
+        2px -2px 0 #000,
+        -2px -2px 0 #000,
+        0 6px 22px rgba(0,0,0,0.85);
+    }
+    #caption .word.on {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    #caption .word.active {
+      color: #ffd34d;
+    }
+    /* Card flutuante de CTA */
+    #cta {
+      position: absolute;
+      left: 50%;
+      bottom: 140px;
+      transform: translateX(-50%) translateY(0) scale(1);
+      z-index: 40;
+      min-width: 620px;
+      max-width: 900px;
+      padding: 28px 40px;
+      border-radius: 28px;
+      text-align: center;
+      background: linear-gradient(135deg, rgba(10,40,90,0.92), rgba(0,90,160,0.92));
+      border: 2px solid rgba(255,255,255,0.18);
+      box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+      opacity: 0.0;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      will-change: opacity, transform;
+    }
+    #cta.show { opacity: 0.96; }
+    #cta.highlight {
+      transform: translateX(-50%) translateY(-18px) scale(1.08);
+      background: linear-gradient(135deg, rgba(0,120,210,0.96), rgba(0,170,120,0.96));
+      box-shadow: 0 26px 80px rgba(0,0,0,0.65);
+    }
+    #cta .headline {
+      font-size: 52px;
+      font-weight: 800;
+      color: #ffffff;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.6);
+    }
+    #cta .phone {
+      margin-top: 10px;
+      font-size: 60px;
+      font-weight: 900;
+      color: #ffe24d;
+      letter-spacing: 1px;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.7);
+    }
+    /* Audio invisivel */
+    #narration { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  </style>
+</head>
+<body>
+  <!--
+    O atributo data-composition-variables traz valores de EXEMPLO para o
+    preview standalone (1-2 cenas placeholder). A HeyGen sobrescreve este
+    objeto com o "variables" enviado no render. O schema e exatamente:
+    { audioUrl, cta:{headline,phone}, scenes:[{index,imageUrl,text,start,duration}] }
+  -->
+  <div id="composition"
+    data-composition-variables='{"audioUrl":"https://vaidosas-videos.b-cdn.net/audios/exemplo.mp3","cta":{"headline":"Orçamento grátis","phone":"(11) 5891.6837"},"scenes":[{"index":1,"imageUrl":"https://picsum.photos/1080/1920?random=1","text":"Reforma travada e sem previsão de fim?","start":0,"duration":4.2},{"index":2,"imageUrl":"https://picsum.photos/1080/1920?random=2","text":"A DJE entrega obra com engenharia e prazo.","start":4.2,"duration":4.8}]}'>
+    <!-- as cenas e a legenda sao injetadas via JS -->
+    <div id="scenes"></div>
+    <div class="vignette"></div>
+    <div id="caption"></div>
+    <div id="cta">
+      <div class="headline"></div>
+      <div class="phone"></div>
+    </div>
+    <audio id="narration" preload="auto" crossorigin="anonymous"></audio>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    // ----------------------------------------------------------------------
+    // 1) Carregar as variables (default do atributo; HeyGen sobrescreve)
+    // ----------------------------------------------------------------------
+    var root = document.getElementById("composition");
+
+    function loadVariables() {
+      // Prioridade: objeto global (caso a HyperFrames injete) -> atributo data-*
+      if (window.COMPOSITION_VARIABLES && typeof window.COMPOSITION_VARIABLES === "object") {
+        return window.COMPOSITION_VARIABLES;
+      }
+      var raw = root.getAttribute("data-composition-variables") || "{}";
+      try {
+        return JSON.parse(raw);
+      } catch (e) {
+        return {};
+      }
+    }
+
+    var vars = loadVariables();
+    var scenes = Array.isArray(vars.scenes) ? vars.scenes.slice() : [];
+    scenes.sort(function (a, b) { return (Number(a.start) || 0) - (Number(b.start) || 0); });
+
+    var cta = vars.cta || { headline: "", phone: "" };
+    var audioUrl = vars.audioUrl || "";
+
+    // Duracao total = soma das durations (ou start+duration do ultimo).
+    var totalDuration = 0;
+    for (var i = 0; i < scenes.length; i++) {
+      var s = scenes[i];
+      var end = (Number(s.start) || 0) + (Number(s.duration) || 0);
+      if (end > totalDuration) totalDuration = end;
+    }
+
+    // ----------------------------------------------------------------------
+    // 2) Montar o DOM das cenas, legenda e CTA
+    // ----------------------------------------------------------------------
+    var scenesLayer = document.getElementById("scenes");
+    var sceneEls = [];
+
+    for (var k = 0; k < scenes.length; k++) {
+      var sc = scenes[k];
+      var div = document.createElement("div");
+      div.className = "scene";
+      var bg = document.createElement("div");
+      bg.className = "bg";
+      if (sc.imageUrl) {
+        bg.style.backgroundImage = "url('" + String(sc.imageUrl).replace(/'/g, "%27") + "')";
+      }
+      div.appendChild(bg);
+      scenesLayer.appendChild(div);
+      sceneEls.push({ el: div, bg: bg, data: sc, words: null, wordEls: null });
+    }
+
+    var captionEl = document.getElementById("caption");
+    var ctaEl = document.getElementById("cta");
+    ctaEl.querySelector(".headline").textContent = cta.headline || "";
+    ctaEl.querySelector(".phone").textContent = cta.phone || "";
+
+    var audioEl = document.getElementById("narration");
+    if (audioUrl) audioEl.setAttribute("src", audioUrl);
+
+    // Caches de palavras por cena (renderizadas sob demanda)
+    function buildWords(sceneObj) {
+      if (sceneObj.words) return;
+      var text = String(sceneObj.data.text || "").trim();
+      var parts = text.length ? text.split(/\s+/) : [];
+      sceneObj.words = parts;
+      sceneObj.wordEls = [];
+    }
+
+    function renderCaptionFor(sceneObj) {
+      buildWords(sceneObj);
+      if (captionEl.__owner === sceneObj) return; // ja montado
+      captionEl.innerHTML = "";
+      sceneObj.wordEls = [];
+      for (var w = 0; w < sceneObj.words.length; w++) {
+        var span = document.createElement("span");
+        span.className = "word";
+        span.textContent = sceneObj.words[w];
+        captionEl.appendChild(span);
+        sceneObj.wordEls.push(span);
+      }
+      captionEl.__owner = sceneObj;
+    }
+
+    // ----------------------------------------------------------------------
+    // 3) Relogio unico (seek-driven). Determinista: NAO usa Date.now().
+    //    Prefere um tempo externo fornecido pela HyperFrames; cai para o
+    //    currentTime do <audio> no preview standalone.
+    // ----------------------------------------------------------------------
+    var externalTime = null;
+
+    function setRenderTime(t) {
+      var v = Number(t);
+      externalTime = isNaN(v) ? 0 : v;
+      try { if (audioEl && audioUrl) audioEl.currentTime = externalTime; } catch (e) {}
+      renderAt(externalTime);
+    }
+
+    // Expoe varias convencoes comuns de hook de seek. Ajustar apos doc real.
+    window.setRenderTime = setRenderTime;
+    window.seek = setRenderTime;
+    window.__setRenderTime = setRenderTime;
+    window.HF_seek = setRenderTime;
+
+    function getTime() {
+      if (externalTime !== null) return externalTime;
+      if (audioEl && audioUrl) return audioEl.currentTime || 0;
+      return 0;
+    }
+
+    // ----------------------------------------------------------------------
+    // 4) Render de UM instante de tempo (chamado pelo relogio)
+    // ----------------------------------------------------------------------
+    function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+    function easeInOut(p) { return p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; }
+
+    var lastSceneIndex = -1;
+
+    function renderAt(time) {
+      var active = -1;
+      for (var i = 0; i < sceneEls.length; i++) {
+        var d = sceneEls[i].data;
+        var start = Number(d.start) || 0;
+        var dur = Number(d.duration) || 0;
+        var end = start + dur;
+        var so = sceneEls[i];
+        if (time >= start && time < end) {
+          active = i;
+          var p = dur > 0 ? clamp((time - start) / dur, 0, 1) : 0;
+          so.el.style.opacity = "1";
+
+          // Ken Burns: zoom + leve pan, alternando direcao por indice.
+          var zoomIn = (i % 2 === 0);
+          var scale = zoomIn ? (1.06 + 0.12 * p) : (1.18 - 0.12 * p);
+          var panX = (zoomIn ? 1 : -1) * (easeInOut(p) * 26 - 13);
+          var panY = (zoomIn ? -1 : 1) * (easeInOut(p) * 26 - 13);
+          so.bg.style.transform = "scale(" + scale.toFixed(4) + ") translate(" + panX.toFixed(2) + "px," + panY.toFixed(2) + "px)";
+
+          // Legenda palavra a palavra (estilo CapCut)
+          renderCaptionFor(so);
+          var n = so.words.length;
+          if (n > 0) {
+            var visibleFloat = p * n;
+            var visible = Math.floor(visibleFloat) + 1;
+            if (visible > n) visible = n;
+            for (var wi = 0; wi < so.wordEls.length; wi++) {
+              var on = wi < visible;
+              var el = so.wordEls[wi];
+              if (on) el.classList.add("on"); else el.classList.remove("on");
+              if (wi === visible - 1) el.classList.add("active"); else el.classList.remove("active");
+            }
+          }
+        } else {
+          so.el.style.opacity = "0";
+        }
+      }
+
+      // CTA: discreto durante o video; destaque na ultima cena.
+      var lastIndex = sceneEls.length - 1;
+      var ctaVisible = active >= 0;
+      var ctaHighlight = (active === lastIndex && lastIndex >= 0);
+      if (ctaVisible) ctaEl.classList.add("show"); else ctaEl.classList.remove("show");
+      if (ctaHighlight) ctaEl.classList.add("highlight"); else ctaEl.classList.remove("highlight");
+
+      lastSceneIndex = active;
+    }
+
+    // ----------------------------------------------------------------------
+    // 5) Loop de preview standalone (rAF). No render seek-driven da
+    //    HyperFrames, setRenderTime() dita o tempo a cada frame.
+    // ----------------------------------------------------------------------
+    function tick() {
+      if (externalTime === null) {
+        renderAt(getTime());
+      }
+      window.requestAnimationFrame(tick);
+    }
+
+    // Tenta autoplay do audio apenas no preview (ignorado no render frame a frame).
+    function tryAutoplay() {
+      if (!audioUrl) return;
+      var pr = audioEl.play();
+      if (pr && typeof pr.catch === "function") { pr.catch(function () {}); }
+    }
+
+    // Sinaliza ao framework que a composicao esta pronta (varias convencoes).
+    function signalReady() {
+      try { window.__compositionReady = true; } catch (e) {}
+      try { if (typeof window.onCompositionReady === "function") window.onCompositionReady(totalDuration); } catch (e) {}
+    }
+
+    // Expoe metadados uteis para o renderer.
+    window.getCompositionDuration = function () { return totalDuration; };
+
+    renderAt(0);
+    signalReady();
+    tryAutoplay();
+    window.requestAnimationFrame(tick);
+  })();
+  </script>
+</body>
+</html>
