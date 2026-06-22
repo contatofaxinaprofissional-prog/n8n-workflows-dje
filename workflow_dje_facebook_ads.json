@@ -19,16 +19,28 @@
               "fieldOptions": {
                 "values": [
                   {
-                    "option": "pt-BR-MacerioMultilingualNeural"
+                    "option": "Orus"
                   },
                   {
-                    "option": "pt-BR-ThalitaMultilingualNeural"
+                    "option": "Charon"
                   },
                   {
-                    "option": "pt-BR-AntonioNeural"
+                    "option": "Kore"
                   },
                   {
-                    "option": "pt-BR-FranciscaNeural"
+                    "option": "Puck"
+                  },
+                  {
+                    "option": "Aoede"
+                  },
+                  {
+                    "option": "Fenrir"
+                  },
+                  {
+                    "option": "Leda"
+                  },
+                  {
+                    "option": "Zephyr"
                   }
                 ]
               },
@@ -251,50 +263,43 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://brazilsouth.tts.speech.microsoft.com/cognitiveservices/v1",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Ocp-Apim-Subscription-Key",
-              "value": "YOUR_AZURE_KEY"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/ssml+xml"
-            },
-            {
-              "name": "X-Microsoft-OutputFormat",
-              "value": "audio-16khz-32kbitrate-mono-mp3"
-            },
-            {
-              "name": "User-Agent",
-              "value": "n8n-dje"
-            }
-          ]
-        },
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/ssml+xml",
-        "body": "=<speak version='1.0' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='pt-BR'><voice name='{{ $('Formulario de Video').item.json['Voz'] || 'pt-BR-MacerioMultilingualNeural' }}'><mstts:express-as style='{{ $('Formulario de Video').item.json['Estilo Emocional'] || 'friendly' }}' styledegree='1.5'><prosody rate='-5%' pitch='-2%'>{{ $json.texto_narracao }}</prosody></mstts:express-as></voice></speak>",
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "file",
-              "outputPropertyName": "data"
-            }
-          }
-        }
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [ { parts: [ { text: ('Narre em tom de comercial premium, persuasivo e ' + ($('Formulario de Video').item.json['Estilo Emocional'] || 'confiante') + ', com ritmo dinâmico e dicção masculina de autoridade: ' + ($json.texto_narracao || '')) } ] } ], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: ($('Formulario de Video').item.json['Voz'] || 'Orus') } } } } }) }}",
+        "options": {}
       },
-      "id": "ab70be1e-9b18-40aa-80a6-e32d76828b42",
-      "name": "Azure - Audio (Macerio)",
+      "id": "b2c3d4e5-0005-4a05-8a05-geminittsnode5",
+      "name": "Gemini TTS (Orus)",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
+      "typeVersion": 4.2,
       "position": [
         1320,
-        240
+        160
       ],
-      "notes": "Substitua YOUR_AZURE_KEY pela chave Azure Speech (placeholder)."
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "GEMINI_CRED_PLACEHOLDER",
+          "name": "Gemini API"
+        }
+      },
+      "notes": "TTS via Google Gemini 3.1 Flash. A credencial httpHeaderAuth envia o header x-goog-api-key com a chave do Google AI Studio. Resposta JSON com audio base64 (PCM 16-bit mono 24kHz)."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// === PCM para WAV (Run Once for Each Item) ===\n// Converte o audio base64 do Gemini TTS (PCM linear 16-bit mono 24000 Hz) em um WAV valido,\n// prependendo um cabecalho WAV de 44 bytes (RIFF/WAVE/fmt /data).\nconst resp = $input.item.json || {};\n\nfunction findInline(obj, depth) {\n  if (obj == null || depth > 8) return null;\n  if (typeof obj === 'object') {\n    if (obj.inlineData && obj.inlineData.data) return obj.inlineData.data;\n    if (obj.inline_data && obj.inline_data.data) return obj.inline_data.data;\n    const vals = Array.isArray(obj) ? obj : Object.keys(obj).map(function (k) { return obj[k]; });\n    for (const v of vals) {\n      const r = findInline(v, depth + 1);\n      if (r) return r;\n    }\n  }\n  return null;\n}\n\nlet b64 = '';\ntry { b64 = resp.candidates[0].content.parts[0].inlineData.data; } catch (e) { b64 = ''; }\nif (!b64) { try { b64 = resp.candidates[0].content.parts[0].inline_data.data; } catch (e) { b64 = ''; } }\nif (!b64) b64 = findInline(resp, 0) || '';\nif (!b64) {\n  throw new Error('PCM para WAV: nao encontrei o audio base64 em candidates[0].content.parts[0].inlineData.data');\n}\n\nconst pcm = Buffer.from(b64, 'base64');\nconst numChannels = 1;\nconst sampleRate = 24000;\nconst bitsPerSample = 16;\nconst byteRate = sampleRate * numChannels * bitsPerSample / 8;\nconst blockAlign = numChannels * bitsPerSample / 8;\nconst dataSize = pcm.length;\n\nconst header = Buffer.alloc(44);\nheader.write('RIFF', 0, 'ascii');\nheader.writeUInt32LE(36 + dataSize, 4);\nheader.write('WAVE', 8, 'ascii');\nheader.write('fmt ', 12, 'ascii');\nheader.writeUInt32LE(16, 16);\nheader.writeUInt16LE(1, 20);\nheader.writeUInt16LE(numChannels, 22);\nheader.writeUInt32LE(sampleRate, 24);\nheader.writeUInt32LE(byteRate, 28);\nheader.writeUInt16LE(blockAlign, 32);\nheader.writeUInt16LE(bitsPerSample, 34);\nheader.write('data', 36, 'ascii');\nheader.writeUInt32LE(dataSize, 40);\n\nconst wavBuffer = Buffer.concat([header, pcm]);\n\nreturn {\n  json: Object.assign({}, resp, { audioFormat: 'wav', sampleRate: sampleRate, audioBytes: wavBuffer.length }),\n  binary: { data: await this.helpers.prepareBinaryData(wavBuffer, 'audio.wav', 'audio/wav') }\n};"
+      },
+      "id": "c3d4e5f6-0006-4a06-8a06-pcmparawav0006",
+      "name": "PCM para WAV",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        160
+      ]
     },
     {
       "parameters": {
@@ -624,8 +629,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1540,
-        240
+        1700,
+        160
       ]
     }
   ],
@@ -689,23 +694,12 @@
       "main": [
         [
           {
-            "node": "Azure - Audio (Macerio)",
+            "node": "Gemini TTS (Orus)",
             "type": "main",
             "index": 0
           },
           {
             "node": "Parse Generated Prompts",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Azure - Audio (Macerio)": {
-      "main": [
-        [
-          {
-            "node": "Marcar Audio",
             "type": "main",
             "index": 0
           }
@@ -878,6 +872,28 @@
         [
           {
             "node": "Atualizar Planilha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini TTS (Orus)": {
+      "main": [
+        [
+          {
+            "node": "PCM para WAV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PCM para WAV": {
+      "main": [
+        [
+          {
+            "node": "Marcar Audio",
             "type": "main",
             "index": 0
           }
