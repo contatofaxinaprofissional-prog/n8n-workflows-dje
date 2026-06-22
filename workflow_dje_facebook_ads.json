@@ -298,7 +298,7 @@
     },
     {
       "parameters": {
-        "jsCode": "\n// === Parse Generated Prompts ===\n// Gera taskUUID (UUIDv4) e final_prompt por clip; define resolucao vertical 1080x1920.\nfunction uuidv4() {\n  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {\n    const r = Math.random() * 16 | 0;\n    const v = c === 'x' ? r : (r & 0x3 | 0x8);\n    return v.toString(16);\n  });\n}\nconst items = $input.all();\nreturn items.map((it) => {\n  const j = it.json || {};\n  return {\n    json: {\n      ...j,\n      final_prompt: j.imagem_prompt || j.final_prompt || '',\n      taskUUID: uuidv4(),\n      width: 1080,\n      height: 1920,\n      texto_narracao: j.texto_narracao || '',\n      clip: j.clip\n    }\n  };\n});\n"
+        "jsCode": "\n// === Parse Generated Prompts ===\n// Gera taskUUID (UUIDv4) e final_prompt por clip; define resolucao vertical 1080x1920.\nfunction uuidv4() {\n  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {\n    const r = Math.random() * 16 | 0;\n    const v = c === 'x' ? r : (r & 0x3 | 0x8);\n    return v.toString(16);\n  });\n}\nconst items = $input.all();\nreturn items.map((it) => {\n  const j = it.json || {};\n  return {\n    json: {\n      ...j,\n      final_prompt: j.imagem_prompt || j.final_prompt || '',\n      taskUUID: uuidv4(),\n      width: 1536,\n      height: 2752,\n      texto_narracao: j.texto_narracao || '',\n      clip: j.clip\n    }\n  };\n});\n"
       },
       "id": "448dd614-5dee-46b8-8484-1dc293614f6c",
       "name": "Parse Generated Prompts",
