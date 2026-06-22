@@ -369,14 +369,7 @@
       "parameters": {
         "mode": "combine",
         "combineBy": "combineByFields",
-        "mergeByFields": {
-          "values": [
-            {
-              "field1": "clip",
-              "field2": "clip"
-            }
-          ]
-        },
+        "fieldsToMatchString": "clip",
         "joinMode": "keepMatches",
         "options": {}
       },
