@@ -358,7 +358,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "=[\n  {\n    \"taskType\": \"getResponse\",\n    \"taskUUID\": \"{{ $json.taskUUID }}\"\n  }\n]",
+        "jsonBody": "=[\n  {\n    \"taskType\": \"getResponse\",\n    \"taskUUID\": \"{{ $('Parse Generated Prompts').item.json.taskUUID }}\"\n  }\n]",
         "options": {}
       },
       "id": "a8373b0a-60a8-455e-8bad-1b4edab4c58b",
@@ -450,7 +450,7 @@
     },
     {
       "parameters": {
-        "jsCode": "\n// === Increment Retry Counter ===\nconst j = $input.first().json || {};\nconst rc = (parseInt(j.retry_count, 10) || 0) + 1;\nreturn [{ json: { ...j, retry_count: rc } }];\n"
+        "jsCode": "// === Increment Retry Counter ===\n// retry_count baseado em $runIndex (incrementa a cada volta do loop),\n// pois o json e' sobrescrito pela resposta HTTP do Check Result.\nconst j = $input.first().json || {};\nconst rc = ($runIndex || 0) + 1;\nreturn [{ json: Object.assign({}, j, { retry_count: rc }) }];"
       },
       "id": "1fe8aa7a-7e34-4ac5-afb5-0f1751fc34a1",
       "name": "Increment Retry Counter",
