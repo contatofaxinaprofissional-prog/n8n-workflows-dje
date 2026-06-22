@@ -1,0 +1,928 @@
+{
+  "name": "DJE - Videos Verticais Facebook Ads",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Gerador de Video DJE - Facebook Ads",
+        "formDescription": "Cole o JSON completo (gerado pelo workflow anterior) no campo abaixo.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Dados JSON",
+              "fieldType": "textarea",
+              "requiredField": true,
+              "placeholder": "Cole aqui o objeto/array JSON completo..."
+            },
+            {
+              "fieldLabel": "Voz",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "pt-BR-MacerioMultilingualNeural"
+                  },
+                  {
+                    "option": "pt-BR-ThalitaMultilingualNeural"
+                  },
+                  {
+                    "option": "pt-BR-AntonioNeural"
+                  },
+                  {
+                    "option": "pt-BR-FranciscaNeural"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Estilo Emocional",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "friendly"
+                  },
+                  {
+                    "option": "hopeful"
+                  },
+                  {
+                    "option": "calm"
+                  },
+                  {
+                    "option": "excited"
+                  },
+                  {
+                    "option": "serious"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Musica de Fundo (URL)",
+              "fieldType": "text",
+              "requiredField": false,
+              "placeholder": "Opcional: URL de uma musica de fundo (mp3). Deixe vazio para nao usar."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a851aa61-5043-41e7-a2db-6817aa410036",
+      "name": "Formulario de Video",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        400
+      ],
+      "webhookId": "9e5e862d-7ec6-4099-a87e-77dbe16133a4"
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// === Parse JSON Entrada ===\n// Recebe o texto colado no campo \"Dados JSON\" do formulario e extrai os campos.\nconst first = $input.first().json || {};\nconst raw = first[\"Dados JSON\"] || first.dadosJson || first.data || first.json || \"\";\n\nfunction cleanAndParse(input) {\n  if (input == null) return {};\n  if (typeof input === 'object') return input;\n  let s = String(input).trim();\n  // remove cercas markdown ```json ... ```\n  s = s.replace(/```json/gi, '').replace(/```/g, '').trim();\n  // localiza o primeiro { ou [\n  const firstObj = s.indexOf('{');\n  const firstArr = s.indexOf('[');\n  let start = -1;\n  if (firstArr !== -1 && (firstArr < firstObj || firstObj === -1)) {\n    start = firstArr;\n  } else {\n    start = firstObj;\n  }\n  if (start > 0) s = s.slice(start);\n  // localiza o ultimo } ou ]\n  const lastObj = s.lastIndexOf('}');\n  const lastArr = s.lastIndexOf(']');\n  const end = Math.max(lastObj, lastArr);\n  if (end !== -1) s = s.slice(0, end + 1);\n  try {\n    return JSON.parse(s);\n  } catch (e) {\n    // tenta remover virgulas pendentes\n    try {\n      return JSON.parse(s.replace(/,\\s*([}\\]])/g, '$1'));\n    } catch (e2) {\n      throw new Error('Nao foi possivel parsear o JSON de entrada: ' + e2.message);\n    }\n  }\n}\n\nlet parsed = cleanAndParse(raw);\nif (Array.isArray(parsed)) parsed = parsed[0] || {};\n\nconst jtbd = parsed.jtbd || {};\nconst pesquisa = parsed.pesquisa || {};\nconst estrategia = parsed.estrategia || {};\n\nlet numClips = parseInt(parsed.numClips, 10);\nif (isNaN(numClips) || numClips < 14) numClips = 14;\n\nlet duracao = parseInt(parsed.duracaoClip, 10);\nif (isNaN(duracao) || duracao <= 0) duracao = 4;\n\nconst servico = parsed.servico || parsed.keyword || 'Servico DJE';\nconst metaDesc = parsed.observacoes || (estrategia && estrategia.puv) || '';\n\nreturn [{\n  json: {\n    articleTitle: servico,\n    servico: servico,\n    keyword: parsed.keyword || '',\n    plataforma: parsed.plataforma || 'Facebook Ads',\n    metaDescription: metaDesc,\n    observacoes: parsed.observacoes || '',\n    numberOfClips: numClips,\n    duration: duracao,\n    persona: parsed.persona || '',\n    empresa: parsed.empresa || 'DJE Construcao e Reformas',\n    jtbd: jtbd,\n    pesquisa: pesquisa,\n    estrategia: estrategia\n  }\n}];\n"
+      },
+      "id": "e477e678-b4dc-4de1-8b42-ff2fb498e3af",
+      "name": "Parse JSON Entrada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7e9b913d-e3f1-4fef-a844-36a8be5517ad",
+              "name": "articleTitle",
+              "value": "={{ $json.articleTitle }}",
+              "type": "string"
+            },
+            {
+              "id": "d13c52f8-2d7e-470b-a18d-7ff472b99687",
+              "name": "metaDescription",
+              "value": "={{ $json.metaDescription }}",
+              "type": "string"
+            },
+            {
+              "id": "eb5c7e18-cde9-4f3f-af38-41b9aadb9991",
+              "name": "numberOfClips",
+              "value": "={{ $json.numberOfClips }}",
+              "type": "number"
+            },
+            {
+              "id": "2ae9c6f3-9dd8-415d-8d0f-de44146052d1",
+              "name": "duration",
+              "value": "={{ $json.duration }}",
+              "type": "number"
+            },
+            {
+              "id": "a9897390-5dd8-444a-ab74-4c3163917b95",
+              "name": "plataforma",
+              "value": "={{ $json.plataforma }}",
+              "type": "string"
+            },
+            {
+              "id": "454c4437-5f7d-4a13-a334-83fea1cf3400",
+              "name": "empresa",
+              "value": "={{ $json.empresa }}",
+              "type": "string"
+            },
+            {
+              "id": "2bbdf8ce-17e8-440b-a78d-02a4200575e2",
+              "name": "persona",
+              "value": "={{ $json.persona }}",
+              "type": "string"
+            },
+            {
+              "id": "f3ff6362-fd54-4aa2-97cc-523d9ce7ea26",
+              "name": "jtbd",
+              "value": "={{ $json.jtbd }}",
+              "type": "object"
+            },
+            {
+              "id": "c3982bd6-1366-4afc-b075-95954dc7fd59",
+              "name": "pesquisa",
+              "value": "={{ $json.pesquisa }}",
+              "type": "object"
+            },
+            {
+              "id": "a36dd029-11ba-4a7c-b1c0-6a574336e982",
+              "name": "estrategia",
+              "value": "={{ $json.estrategia }}",
+              "type": "object"
+            },
+            {
+              "id": "bd42ba83-c435-4e85-8183-e3f9cbad850b",
+              "name": "voz",
+              "value": "={{ $('Formulario de Video').item.json['Voz'] || 'pt-BR-MacerioMultilingualNeural' }}",
+              "type": "string"
+            },
+            {
+              "id": "9766eeaa-270c-42b1-b09e-34f283cd2d18",
+              "name": "estiloEmocional",
+              "value": "={{ $('Formulario de Video').item.json['Estilo Emocional'] || 'friendly' }}",
+              "type": "string"
+            },
+            {
+              "id": "85c96c3d-3963-4185-8966-6ac5a1ba723b",
+              "name": "musicaFundo",
+              "value": "={{ $('Formulario de Video').item.json['Musica de Fundo (URL)'] || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b1261d8b-ac4e-41b9-af66-13a233c7a9ce",
+      "name": "Edit Fields1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Voce e o \"Agente Diretor\" da DJE Construcao e Reformas (Sao Paulo, 19 anos de experiencia).\nSua missao: criar o roteiro de um VIDEO VERTICAL (9:16, 1080x1920) otimizado para CONVERSAO em FACEBOOK ADS.\n\nCONTEXTO DO PROJETO (use para personalizar tudo):\n- Servico/Tema: {{ $json.articleTitle }}\n- Plataforma: {{ $json.plataforma }}\n- Empresa: {{ $json.empresa }}\n- Observacoes/Meta: {{ $json.metaDescription }}\n- PERSONA (publico-alvo): {{ $json.persona }}\n- JTBD (job to be done): {{ JSON.stringify($json.jtbd) }}\n- PESQUISA: {{ JSON.stringify($json.pesquisa) }}\n- ESTRATEGIA: {{ JSON.stringify($json.estrategia) }}\n\nREQUISITOS OBRIGATORIOS:\n1. Gere NO MINIMO {{ $json.numberOfClips }} clips (e nunca menos que 14). Se {{ $json.numberOfClips }} for maior que 14, use esse numero.\n2. Estrutura narrativa de conversao, em ordem: HOOK forte nos 3 primeiros segundos -> DOR -> AGITACAO da dor -> DESCOBERTA (a DJE como solucao) -> TRANSFORMACAO -> RESULTADO/prova -> CTA final.\n3. O CTA final deve chamar para o WhatsApp (11) 5891.6837 (orcamento gratis).\n4. texto_narracao: SEMPRE em PORTUGUES do Brasil, curto, no maximo 12 a 15 palavras por clip, tom masculino de autoridade, acolhedor e esperancoso.\n5. imagem_prompt: SEMPRE em INGLES, descritivo e cinematografico, vertical 9:16, fotorrealista, alta qualidade, focado em obras/reformas residenciais e comerciais reais.\n6. Conecte cada clip a dor/desejo da PERSONA e ao JTBD.\n\nFORMATO DE SAIDA: responda APENAS com JSON valido, sem texto extra, no formato exato:\n{\n  \"roteiro_video\": [\n    { \"clip\": 1, \"fase\": \"hook\", \"imagem_prompt\": \"...english...\", \"texto_narracao\": \"...portugues curto...\" }\n  ]\n}\nCada objeto do array deve conter exatamente as chaves: clip, fase, imagem_prompt, texto_narracao.",
+              "role": "user"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "id": "64eff1bd-ebe5-4e79-8462-d5ca13e56228",
+      "name": "Agente Diretor",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        660,
+        400
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAI_CRED_PLACEHOLDER",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// === Parser Roteiro ===\n// Extrai o JSON do roteiro gerado pelo Agente Diretor de forma robusta.\nconst item = $input.first().json || {};\nlet raw = '';\nif (item.message && item.message.content !== undefined) {\n  raw = typeof item.message.content === 'string' ? item.message.content : JSON.stringify(item.message.content);\n} else if (typeof item.content === 'string') {\n  raw = item.content;\n} else if (item.text) {\n  raw = typeof item.text === 'string' ? item.text : JSON.stringify(item.text);\n} else if (item.output !== undefined) {\n  raw = typeof item.output === 'string' ? item.output : JSON.stringify(item.output);\n} else {\n  raw = JSON.stringify(item);\n}\n\nfunction extractJson(s) {\n  s = String(s).replace(/```json/gi, '').replace(/```/g, '').trim();\n  const fo = s.indexOf('{');\n  const fa = s.indexOf('[');\n  let start = -1;\n  if (fa !== -1 && (fa < fo || fo === -1)) start = fa; else start = fo;\n  if (start > 0) s = s.slice(start);\n  const lo = s.lastIndexOf('}');\n  const la = s.lastIndexOf(']');\n  const end = Math.max(lo, la);\n  if (end !== -1) s = s.slice(0, end + 1);\n  try { return JSON.parse(s); }\n  catch (e) { return JSON.parse(s.replace(/,\\s*([}\\]])/g, '$1')); }\n}\n\nlet parsed = extractJson(raw);\nlet roteiro;\nif (Array.isArray(parsed)) {\n  roteiro = parsed;\n} else if (parsed.roteiro_video && Array.isArray(parsed.roteiro_video)) {\n  roteiro = parsed.roteiro_video;\n} else {\n  // tenta achar a primeira propriedade array\n  const arrKey = Object.keys(parsed).find(k => Array.isArray(parsed[k]));\n  roteiro = arrKey ? parsed[arrKey] : [];\n}\n\n// normaliza cada clip\nconst ctx = $('Edit Fields1').first().json || {};\nroteiro = roteiro.map((c, i) => ({\n  clip: c.clip || (i + 1),\n  fase: c.fase || '',\n  imagem_prompt: c.imagem_prompt || c.image_prompt || '',\n  texto_narracao: c.texto_narracao || c.narracao || '',\n  articleTitle: ctx.articleTitle || '',\n  duration: ctx.duration || 4\n}));\n\nreturn [{ json: { roteiro_video: roteiro } }];\n"
+      },
+      "id": "62ae6ea6-ca84-42b4-b88a-38467e5e9871",
+      "name": "Parser Roteiro",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "roteiro_video",
+        "include": "noOtherFields",
+        "options": {}
+      },
+      "id": "4b2e9370-8b31-4b1b-abaf-697099d213a8",
+      "name": "item lists",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://brazilsouth.tts.speech.microsoft.com/cognitiveservices/v1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Ocp-Apim-Subscription-Key",
+              "value": "YOUR_AZURE_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/ssml+xml"
+            },
+            {
+              "name": "X-Microsoft-OutputFormat",
+              "value": "audio-16khz-32kbitrate-mono-mp3"
+            },
+            {
+              "name": "User-Agent",
+              "value": "n8n-dje"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/ssml+xml",
+        "body": "=<speak version='1.0' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='pt-BR'><voice name='{{ $('Formulario de Video').item.json['Voz'] || 'pt-BR-MacerioMultilingualNeural' }}'><mstts:express-as style='{{ $('Formulario de Video').item.json['Estilo Emocional'] || 'friendly' }}' styledegree='1.5'><prosody rate='-5%' pitch='-2%'>{{ $json.texto_narracao }}</prosody></mstts:express-as></voice></speak>",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "id": "ab70be1e-9b18-40aa-80a6-e32d76828b42",
+      "name": "Azure - Audio (Macerio)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1320,
+        240
+      ],
+      "notes": "Substitua YOUR_AZURE_KEY pela chave Azure Speech (placeholder)."
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// === Parse Generated Prompts ===\n// Gera taskUUID (UUIDv4) e final_prompt por clip; define resolucao vertical 1080x1920.\nfunction uuidv4() {\n  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {\n    const r = Math.random() * 16 | 0;\n    const v = c === 'x' ? r : (r & 0x3 | 0x8);\n    return v.toString(16);\n  });\n}\nconst items = $input.all();\nreturn items.map((it) => {\n  const j = it.json || {};\n  return {\n    json: {\n      ...j,\n      final_prompt: j.imagem_prompt || j.final_prompt || '',\n      taskUUID: uuidv4(),\n      width: 1080,\n      height: 1920,\n      texto_narracao: j.texto_narracao || '',\n      clip: j.clip\n    }\n  };\n});\n"
+      },
+      "id": "448dd614-5dee-46b8-8484-1dc293614f6c",
+      "name": "Parse Generated Prompts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.runware.ai/v1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=[\n  {\n    \"taskType\": \"imageInference\",\n    \"model\": \"google:4@3\",\n    \"positivePrompt\": \"{{ $json.final_prompt }}\",\n    \"width\": {{ $json.width }},\n    \"height\": {{ $json.height }},\n    \"settings\": { \"temperature\": 0.72, \"topP\": 0.95, \"thinking\": \"HIGH\" },\n    \"providerSettings\": { \"google\": { \"safetyTolerance\": \"off\" } },\n    \"taskUUID\": \"{{ $json.taskUUID }}\",\n    \"outputType\": [\"URL\"],\n    \"outputFormat\": \"WEBP\",\n    \"outputQuality\": 90,\n    \"includeCost\": true,\n    \"deliveryMethod\": \"async\"\n  }\n]",
+        "options": {}
+      },
+      "id": "b199afc8-0706-415f-8680-f9d51eb77392",
+      "name": "Submit to RunWare",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        560
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "RUNWARE_CRED_PLACEHOLDER",
+          "name": "RunWare API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 50,
+        "unit": "seconds"
+      },
+      "id": "1e6d5118-deac-42f5-9d8b-35fc11d6aa00",
+      "name": "Wait 50s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1760,
+        560
+      ],
+      "webhookId": "af42f2a2-e7c3-4b8e-b389-e16b44e69d9c"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.runware.ai/v1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=[\n  {\n    \"taskType\": \"getResponse\",\n    \"taskUUID\": \"{{ $json.taskUUID }}\"\n  }\n]",
+        "options": {}
+      },
+      "id": "a8373b0a-60a8-455e-8bad-1b4edab4c58b",
+      "name": "Check Result",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1980,
+        560
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "RUNWARE_CRED_PLACEHOLDER",
+          "name": "RunWare API"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "ff1f7b7a-4369-42c4-bc7a-86370edb2601",
+              "leftValue": "={{ $json.data[0].status }}",
+              "rightValue": "success",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "df410c45-d005-453c-b851-ecac03f1e246",
+      "name": "Check Status",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.data[0].imageURL }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "foto"
+            }
+          }
+        }
+      },
+      "id": "a34e11b3-0a55-4726-9cd8-870195aa06af",
+      "name": "Baixar Foto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2420,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 10,
+        "unit": "seconds"
+      },
+      "id": "54bdab28-a412-4bd8-b79a-3c06a024f2b2",
+      "name": "Wait 10s More",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2420,
+        680
+      ],
+      "webhookId": "dbc2f081-4feb-420c-8c3e-210dbb401f36"
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// === Increment Retry Counter ===\nconst j = $input.first().json || {};\nconst rc = (parseInt(j.retry_count, 10) || 0) + 1;\nreturn [{ json: { ...j, retry_count: rc } }];\n"
+      },
+      "id": "1fe8aa7a-7e34-4ac5-afb5-0f1751fc34a1",
+      "name": "Increment Retry Counter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        680
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "562d5c06-9433-4e4f-a2db-c36b5499aac0",
+              "leftValue": "={{ $json.retry_count }}",
+              "rightValue": 6,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f3e0ab40-6c04-4d80-a404-5c81a2464895",
+      "name": "Check Retry Limit",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        680
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7b3d098e-e300-4bda-ac40-9b22b46b9c67",
+              "name": "status",
+              "value": "failed",
+              "type": "string"
+            },
+            {
+              "id": "9461cf53-4373-495d-b986-5dd870148b31",
+              "name": "clip",
+              "value": "={{ $json.clip }}",
+              "type": "number"
+            },
+            {
+              "id": "319cb020-069a-4deb-b6b8-02aaf59a6245",
+              "name": "texto_narracao",
+              "value": "={{ $json.texto_narracao }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "bf169513-8423-4e93-8cc2-c3f9d5323d05",
+      "name": "Image Failed",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3080,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "numberInputs": 2
+      },
+      "id": "46c378c8-8d71-466a-8aa6-878ef8a03150",
+      "name": "Merge All Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        3300,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "ca8b9c1b-cb10-4d24-8584-f860f667b31d",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3520,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// === Preparar Arquivos ===\n// Gera um mp4 vertical 1080x1920 por clip: audio (Azure TTS) + imagem (RunWare),\n// com zoompan alternado (in/out) e LEGENDA ESTILO CAPCUT (palavra-a-palavra via ASS)\n// do texto_narracao distribuida uniformemente na duracao do audio.\nconst fs = require('fs');\nconst path = require('path');\nconst { execSync } = require('child_process');\nconst TMP = '/tmp';\n\n// Localiza o arquivo binario no filesystem do n8n (fallback caso o buffer nao venha em memoria)\nfunction resolverCaminho(bin) {\n  if (!bin) return null;\n  const id = bin.id ? String(bin.id).split(':').pop() : null;\n  const candidatos = [];\n  if (id) {\n    candidatos.push(\n      path.join('/home/node/.n8n/binaryData', id),\n      path.join('/home/node/.n8n/binaryData', id + '.bin'),\n      path.join('/data/.n8n/binaryData', id),\n      path.join('/tmp', id)\n    );\n  }\n  for (const c of candidatos) {\n    try { if (fs.existsSync(c)) return c; } catch (e) {}\n  }\n  return null;\n}\n\nasync function getBuf(idx, prop, bin) {\n  try {\n    const b = await this.helpers.getBinaryDataBuffer(idx, prop);\n    if (b && b.length) return b;\n  } catch (e) {}\n  const p = resolverCaminho(bin && bin[prop]);\n  if (p) { try { return fs.readFileSync(p); } catch (e) {} }\n  return null;\n}\n\n// Quebra a legenda em linhas curtas (usado apenas no fallback drawtext)\nfunction wrapTexto(t, maxChars) {\n  const palavras = String(t || '').split(/\\s+/);\n  const linhas = [];\n  let atual = '';\n  for (const p of palavras) {\n    if ((atual + ' ' + p).trim().length > maxChars) {\n      if (atual) linhas.push(atual.trim());\n      atual = p;\n    } else {\n      atual = (atual + ' ' + p).trim();\n    }\n  }\n  if (atual) linhas.push(atual.trim());\n  return linhas.join('\\n');\n}\n\nfunction escapeDraw(t) {\n  return String(t || '')\n    .replace(/\\\\/g, '\\\\\\\\')\n    .replace(/:/g, '\\\\:')\n    .replace(/'/g, \"\u2019\")\n    .replace(/%/g, '\\\\%')\n    .replace(/,/g, '\\\\,');\n}\n\n// Escapa texto para ASS: remove blocos de override {..}, barras e quebras de linha.\n// Mantem acentos (UTF-8) intactos -- importante para pt-BR.\nfunction escapeAss(t) {\n  return String(t == null ? '' : t)\n    .replace(/\\\\/g, ' ')\n    .replace(/\\{/g, '(')\n    .replace(/\\}/g, ')')\n    .replace(/\\r?\\n/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n\n// Converte segundos -> tempo ASS (H:MM:SS.cs, centesimos de segundo)\nfunction assTime(t) {\n  if (!(t > 0)) t = 0;\n  let cs = Math.round(t * 100);\n  const h = Math.floor(cs / 360000); cs -= h * 360000;\n  const m = Math.floor(cs / 6000); cs -= m * 6000;\n  const s = Math.floor(cs / 100); cs -= s * 100;\n  const pad = (n, l) => String(n).padStart(l, '0');\n  return `${h}:${pad(m, 2)}:${pad(s, 2)}.${pad(cs, 2)}`;\n}\n\nconst FONT = (function () {\n  const fontes = [\n    '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',\n    '/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf',\n    '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf'\n  ];\n  for (const f of fontes) { try { if (fs.existsSync(f)) return f; } catch (e) {} }\n  return null;\n})();\nconst FONTS_DIR = FONT ? path.dirname(FONT) : '';\nconst ASS_FONT = (FONT && /liberation/i.test(FONT)) ? 'Liberation Sans' : 'DejaVu Sans';\n\nconst items = $input.all();\nconst out = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  const json = item.json || {};\n  const bin = item.binary || {};\n  const clipNum = json.clip || (i + 1);\n\n  const audioBuf = await getBuf.call(this, i, 'data', bin);\n  const imgBuf = await getBuf.call(this, i, 'foto', bin);\n  if (!audioBuf || !imgBuf) {\n    // pula clips sem midia completa\n    continue;\n  }\n\n  const audioPath = `${TMP}/audio_${clipNum}.mp3`;\n  const wavPath = `${TMP}/audio_${clipNum}.wav`;\n  const webpPath = `${TMP}/img_${clipNum}.webp`;\n  const pngPath = `${TMP}/img_${clipNum}.png`;\n  const outPath = `${TMP}/clip_${clipNum}.mp4`;\n  const assPath = `${TMP}/cap_${clipNum}.ass`;\n\n  fs.writeFileSync(audioPath, audioBuf);\n  fs.writeFileSync(webpPath, imgBuf);\n\n  execSync(`ffmpeg -y -i \"${audioPath}\" -ar 44100 -ac 2 \"${wavPath}\"`, { stdio: 'ignore' });\n  execSync(`ffmpeg -y -i \"${webpPath}\" -vf \"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920\" \"${pngPath}\"`, { stdio: 'ignore' });\n\n  // duracao real do audio (probe) -> base para distribuir as palavras uniformemente\n  let dur = parseFloat(json.duration) || 4;\n  try {\n    const probe = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"${wavPath}\"`).toString().trim();\n    const d = parseFloat(probe);\n    if (!isNaN(d) && d > 0) dur = d;\n  } catch (e) {}\n  const duracaoSeg = dur;\n\n  const fps = 25;\n  const frames = Math.ceil(dur * fps);\n\n  // zoom alternado: clips pares = zoom in, impares = zoom out  (mantido exatamente como antes)\n  const zoomIn = (i % 2 === 0);\n  const zoomExpr = zoomIn ? \"min(zoom+0.0012,1.3)\" : \"if(lte(zoom,1.0),1.3,max(1.0,zoom-0.0012))\";\n  const zoomPart = `zoompan=z='${zoomExpr}':d=${frames}:s=1080x1920:fps=${fps}`;\n\n  // === Legenda CapCut: palavras distribuidas uniformemente em duracaoSeg ===\n  const narr = String(json.texto_narracao || '').trim();\n  const words = narr.split(/\\s+/).filter(Boolean);\n  const wordCount = words.length;\n\n  let assOk = false;\n  if (FONT && wordCount > 0) {\n    try {\n      const slice = duracaoSeg / wordCount;   // fatia de tempo por palavra (distribuicao uniforme)\n      const groupSize = 2;                    // mostra 1-2 palavras por vez (estilo CapCut)\n      let dialogues = '';\n      for (let w = 0; w < wordCount; w += groupSize) {\n        const grp = words.slice(w, w + groupSize);\n        const startT = w * slice;\n        const endIdx = Math.min(w + groupSize, wordCount);\n        let endT = endIdx * slice;\n        if (endIdx >= wordCount) endT = duracaoSeg;   // ultimo grupo vai ate o fim do audio\n        const txt = escapeAss(grp.join(' ').toLocaleUpperCase('pt-BR'));\n        if (!txt) continue;\n        // pop-in animado: fade rapido + escala de 55% -> 100%\n        dialogues += `Dialogue: 0,${assTime(startT)},${assTime(endT)},Cap,,0,0,0,,{\\\\fad(60,40)\\\\fscx55\\\\fscy55\\\\t(0,120,\\\\fscx100\\\\fscy100)}${txt}\\n`;\n      }\n      const assContent =\n`[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\nWrapStyle: 2\nScaledBorderAndShadow: yes\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Cap,${ASS_FONT},90,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,6,3,2,80,80,430,1\n\n[Events]\nFormat: Layer, Start, End, Style, MarginL, MarginR, MarginV, Effect, Text\n${dialogues}`;\n      fs.writeFileSync(assPath, assContent, { encoding: 'utf8' });\n      assOk = fs.existsSync(assPath) && fs.statSync(assPath).size > 0;\n    } catch (e) { assOk = false; }\n  }\n\n  const renderFFmpeg = (vfStr) => {\n    execSync(`ffmpeg -y -loop 1 -i \"${pngPath}\" -i \"${wavPath}\" -t ${dur.toFixed(3)} -r ${fps} -vf \"${vfStr}\" -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 192k -shortest -movflags +faststart \"${outPath}\"`, { stdio: 'ignore' });\n  };\n\n  let rendered = false;\n  if (assOk) {\n    try {\n      // escapa caminhos para uso seguro dentro do filtergraph\n      const escAss = assPath.replace(/\\\\/g, '\\\\\\\\').replace(/:/g, '\\\\:').replace(/'/g, \"\\\\'\");\n      const escDir = FONTS_DIR.replace(/\\\\/g, '\\\\\\\\').replace(/:/g, '\\\\:').replace(/'/g, \"\\\\'\");\n      const dirOpt = FONTS_DIR ? `:fontsdir='${escDir}'` : '';\n      // burn ASS apos o zoompan/format (mantem zoompan 1080x1920 intacto)\n      const vf = `${zoomPart},format=yuv420p,ass='${escAss}'${dirOpt}`;\n      renderFFmpeg(vf);\n      rendered = fs.existsSync(outPath) && fs.statSync(outPath).size > 0;\n    } catch (e) { rendered = false; }\n  }\n\n  if (!rendered) {\n    // fallback gracioso: drawtext unico da narracao completa (clip continua renderizavel)\n    const texto = escapeDraw(wrapTexto(json.texto_narracao, 26));\n    const fontPart = FONT ? `fontfile='${FONT}':` : '';\n    const drawtext = `drawtext=${fontPart}text='${texto}':fontcolor=white:fontsize=56:line_spacing=10:box=1:boxcolor=black@0.55:boxborderw=22:borderw=4:bordercolor=black:x=(w-text_w)/2:y=h-h*0.28`;\n    const vf = `${zoomPart},${drawtext}`;\n    renderFFmpeg(vf);\n  }\n\n  const outBuf = fs.readFileSync(outPath);\n  out.push({\n    json: {\n      clip: clipNum,\n      texto_narracao: json.texto_narracao || '',\n      duration: dur,\n      articleTitle: json.articleTitle || ''\n    },\n    binary: {\n      data: await this.helpers.prepareBinaryData(outBuf, `clip_${clipNum}.mp4`, 'video/mp4')\n    }\n  });\n}\n\nreturn out;\n"
+      },
+      "id": "56a82eef-998b-4501-ad4b-feaba9ba4bb8",
+      "name": "Preparar Arquivos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3740,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// === Preparar Paths ===\n// Concatena todos os clips com transicoes crossfade (xfade/acrossfade),\n// sobrepoe a logo DJE e um overlay de CTA, gerando o video final vertical.\n// ENHANCEMENT 3: opcionalmente mixa uma musica de fundo em volume baixo sob toda a narracao.\nconst fs = require('fs');\nconst path = require('path');\nconst { execSync } = require('child_process');\nconst TMP = '/tmp';\n\nfunction resolverCaminho(bin) {\n  if (!bin) return null;\n  const id = bin.id ? String(bin.id).split(':').pop() : null;\n  const candidatos = [];\n  if (id) {\n    candidatos.push(\n      path.join('/home/node/.n8n/binaryData', id),\n      path.join('/home/node/.n8n/binaryData', id + '.bin'),\n      path.join('/data/.n8n/binaryData', id),\n      path.join('/tmp', id)\n    );\n  }\n  for (const c of candidatos) { try { if (fs.existsSync(c)) return c; } catch (e) {} }\n  return null;\n}\n\nasync function getBuf(idx, prop, bin) {\n  try {\n    const b = await this.helpers.getBinaryDataBuffer(idx, prop);\n    if (b && b.length) return b;\n  } catch (e) {}\n  const p = resolverCaminho(bin && bin[prop]);\n  if (p) { try { return fs.readFileSync(p); } catch (e) {} }\n  return null;\n}\n\nconst items = $input.all();\nconst clipPaths = [];\nlet articleTitle = 'video_dje';\nfor (let i = 0; i < items.length; i++) {\n  const bin = items[i].binary || {};\n  if (items[i].json && items[i].json.articleTitle) articleTitle = items[i].json.articleTitle;\n  const buf = await getBuf.call(this, i, 'data', bin);\n  if (!buf) continue;\n  const p = `${TMP}/seg_${i}.mp4`;\n  fs.writeFileSync(p, buf);\n  clipPaths.push(p);\n}\n\nif (clipPaths.length === 0) {\n  throw new Error('Nenhum clip disponivel para concatenar.');\n}\n\n// baixa a logo DJE branca\nconst logoPath = `${TMP}/logo_dje.png`;\ntry {\n  execSync(`wget -q -O \"${logoPath}\" \"https://construcao.djereformas.com.br/wp-content/uploads/2026/03/logo-DJE-branco.png\"`, { stdio: 'ignore' });\n} catch (e) {}\nconst temLogo = (function () { try { return fs.existsSync(logoPath) && fs.statSync(logoPath).size > 0; } catch (e) { return false; } })();\n\nconst FONT = (function () {\n  const fontes = [\n    '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',\n    '/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf',\n    '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf'\n  ];\n  for (const f of fontes) { try { if (fs.existsSync(f)) return f; } catch (e) {} }\n  return null;\n})();\nconst fontPart = FONT ? `fontfile='${FONT}':` : '';\nconst ctaText = 'Orcamento gratis\\\\: WhatsApp (11) 5891.6837';\nconst ctaDraw = `drawtext=${fontPart}text='${ctaText}':fontcolor=white:fontsize=48:box=1:boxcolor=black@0.6:boxborderw=18:x=(w-text_w)/2:y=h*0.06:enable='gte(t,0)'`;\n\nconst XF = 0.5; // duracao do crossfade\nlet finalPath = `${TMP}/final_${Date.now()}.mp4`;\n\nfunction probeDur(p) {\n  try {\n    const d = parseFloat(execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"${p}\"`).toString().trim());\n    return (!isNaN(d) && d > 0) ? d : 4;\n  } catch (e) { return 4; }\n}\n\nlet sucesso = false;\ntry {\n  const inputs = clipPaths.map(p => `-i \"${p}\"`).join(' ');\n  let filter = '';\n  let vlast, alast;\n\n  if (clipPaths.length === 1) {\n    vlast = '[0:v]';\n    alast = '[0:a]';\n  } else {\n    const durs = clipPaths.map(probeDur);\n    vlast = '[0:v]';\n    alast = '[0:a]';\n    let offset = durs[0] - XF;\n    for (let i = 1; i < clipPaths.length; i++) {\n      const vout = `[v${i}]`;\n      const aout = `[a${i}]`;\n      filter += `${vlast}[${i}:v]xfade=transition=fade:duration=${XF}:offset=${offset.toFixed(3)}${vout};`;\n      filter += `${alast}[${i}:a]acrossfade=d=${XF}${aout};`;\n      vlast = vout;\n      alast = aout;\n      offset += durs[i] - XF;\n    }\n  }\n\n  // overlay da logo + CTA\n  const logoIdx = clipPaths.length;\n  let videoChain = vlast;\n  if (temLogo) {\n    filter += `[${logoIdx}:v]scale=320:-1[lg];${videoChain}[lg]overlay=W-w-40:H-h-60[vlogo];`;\n    videoChain = '[vlogo]';\n  }\n  filter += `${videoChain}${ctaDraw}[vout]`;\n\n  const logoInput = temLogo ? `-i \"${logoPath}\"` : '';\n  execSync(`ffmpeg -y ${inputs} ${logoInput} -filter_complex \"${filter}\" -map \"[vout]\" -map \"${alast}\" -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart \"${finalPath}\"`, { stdio: 'ignore' });\n  sucesso = fs.existsSync(finalPath);\n} catch (e) {\n  sucesso = false;\n}\n\n// fallback: concat demuxer simples + logo/CTA se o xfade falhar\nif (!sucesso) {\n  const listPath = `${TMP}/concat_list.txt`;\n  fs.writeFileSync(listPath, clipPaths.map(p => `file '${p}'`).join('\\n'));\n  const concatPath = `${TMP}/concat_${Date.now()}.mp4`;\n  execSync(`ffmpeg -y -f concat -safe 0 -i \"${listPath}\" -c copy \"${concatPath}\"`, { stdio: 'ignore' });\n  if (temLogo) {\n    execSync(`ffmpeg -y -i \"${concatPath}\" -i \"${logoPath}\" -filter_complex \"[1:v]scale=320:-1[lg];[0:v][lg]overlay=W-w-40:H-h-60[vl];[vl]${ctaDraw}[vout]\" -map \"[vout]\" -map 0:a -c:v libx264 -pix_fmt yuv420p -c:a aac -movflags +faststart \"${finalPath}\"`, { stdio: 'ignore' });\n  } else {\n    execSync(`ffmpeg -y -i \"${concatPath}\" -vf \"${ctaDraw}\" -c:v libx264 -pix_fmt yuv420p -c:a aac -movflags +faststart \"${finalPath}\"`, { stdio: 'ignore' });\n  }\n}\n\n// === ENHANCEMENT 3: musica de fundo opcional (volume baixo sob a narracao) ===\n// Le a URL do formulario. Se vazia ou se o download falhar -> mantem o audio atual (fallback gracioso).\nlet musicaUrl = '';\ntry {\n  const fdata = $('Formulario de Video').first().json || {};\n  musicaUrl = String(fdata['Musica de Fundo (URL)'] || '').trim();\n} catch (e) { musicaUrl = ''; }\n\nif (musicaUrl) {\n  try {\n    const musicPath = `${TMP}/bg_music_${Date.now()}.mp3`;\n    // baixa com User-Agent de navegador (mesma abordagem do download da logo)\n    execSync(`wget -q --user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36\" -O \"${musicPath}\" \"${musicaUrl}\"`, { stdio: 'ignore' });\n    const musicaOk = (function () { try { return fs.existsSync(musicPath) && fs.statSync(musicPath).size > 4096; } catch (e) { return false; } })();\n    if (musicaOk) {\n      const mixedPath = `${TMP}/final_mix_${Date.now()}.mp4`;\n      // -stream_loop -1 faz a musica repetir; volume=0.12 deixa a musica baixa/ambiente;\n      // amix duration=first encerra junto com o video; normalize=0 mantem a narracao em volume cheio (dominante);\n      // -shortest garante que nao exceda a duracao do video.\n      execSync(`ffmpeg -y -i \"${finalPath}\" -stream_loop -1 -i \"${musicPath}\" -filter_complex \"[1:a]volume=0.12[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout]\" -map 0:v -map \"[aout]\" -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 192k -shortest -movflags +faststart \"${mixedPath}\"`, { stdio: 'ignore' });\n      if (fs.existsSync(mixedPath) && fs.statSync(mixedPath).size > 0) {\n        finalPath = mixedPath; // passa a usar a versao com musica\n      }\n    }\n  } catch (e) {\n    // qualquer falha no download/mix -> mantem finalPath sem musica (nao quebra o workflow)\n  }\n}\n\nconst finalBuf = fs.readFileSync(finalPath);\nconst nomeArquivo = `${articleTitle}.mp4`;\nreturn [{\n  json: { articleTitle: articleTitle, fileName: nomeArquivo },\n  binary: { data: await this.helpers.prepareBinaryData(finalBuf, nomeArquivo, 'video/mp4') }\n}];\n"
+      },
+      "id": "36fbdacc-e3fa-48ad-af35-669ac1516cfe",
+      "name": "Preparar Paths",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3960,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "name": "={{ $json.articleTitle }}.mp4",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1dzIJ2ugAgeF-cpXFcXDQ-EUP89awuzx2",
+          "cachedResultName": "Videos Curtos DJE"
+        },
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "id": "1460f6c5-8c2b-45c7-a21d-5966fc8f6864",
+      "name": "Upload pro Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        4180,
+        400
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "GDRIVE_CRED_PLACEHOLDER",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1EiEGtEGnLwqOr3OMs9LYItCT13Y9zLbY-i1M_TZ5QXo"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gid=0",
+          "cachedResultName": "Pagina1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Titulo dos Videos": "={{ $('Preparar Paths').item.json.articleTitle }}",
+            "Links do Videos": "={{ $json.webViewLink || $json.webContentLink }}",
+            "Title": "={{ $('Preparar Paths').item.json.articleTitle }}"
+          },
+          "matchingColumns": [
+            "Title"
+          ]
+        },
+        "options": {}
+      },
+      "id": "4174b95d-9f9e-49b4-985f-7ddeb5c4d583",
+      "name": "Atualizar Planilha",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        4400,
+        400
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GSHEETS_CRED_PLACEHOLDER",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Formulario de Video": {
+      "main": [
+        [
+          {
+            "node": "Parse JSON Entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse JSON Entrada": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Agente Diretor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente Diretor": {
+      "main": [
+        [
+          {
+            "node": "Parser Roteiro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser Roteiro": {
+      "main": [
+        [
+          {
+            "node": "item lists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "item lists": {
+      "main": [
+        [
+          {
+            "node": "Azure - Audio (Macerio)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Parse Generated Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Azure - Audio (Macerio)": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Generated Prompts": {
+      "main": [
+        [
+          {
+            "node": "Submit to RunWare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit to RunWare": {
+      "main": [
+        [
+          {
+            "node": "Wait 50s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 50s": {
+      "main": [
+        [
+          {
+            "node": "Check Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Result": {
+      "main": [
+        [
+          {
+            "node": "Check Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Status": {
+      "main": [
+        [
+          {
+            "node": "Baixar Foto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 10s More",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar Foto": {
+      "main": [
+        [
+          {
+            "node": "Merge All Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 10s More": {
+      "main": [
+        [
+          {
+            "node": "Increment Retry Counter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Increment Retry Counter": {
+      "main": [
+        [
+          {
+            "node": "Check Retry Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Retry Limit": {
+      "main": [
+        [
+          {
+            "node": "Check Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Image Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image Failed": {
+      "main": [
+        [
+          {
+            "node": "Merge All Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge All Results": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Preparar Arquivos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Arquivos": {
+      "main": [
+        [
+          {
+            "node": "Preparar Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Paths": {
+      "main": [
+        [
+          {
+            "node": "Upload pro Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload pro Drive": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Planilha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "dje-facebook-ads-workflow",
+    "templateCredsSetupCompleted": false
+  }
+}
