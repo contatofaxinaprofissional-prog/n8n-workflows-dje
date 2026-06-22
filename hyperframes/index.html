@@ -1,34 +1,41 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<!--
+  ============================================================================
+  DJE - Composicao HyperFrames / HeyGen Cloud Rendering (vertical 1080x1920).
+
+  Esta versao segue o CONTRATO OFICIAL do framework @hyperframes/core:
+    - O elemento RAIZ (<html>) declara os metadados por atributos data-*:
+        data-composition-id, data-width, data-height,
+        data-composition-duration e data-composition-variables (SCHEMA das
+        variaveis = array JSON de definicoes [{id,label,type,default}]).
+    - As dimensoes (data-width / data-height) sao OBRIGATORIAS, senao o render
+      falha com "missing_composition_dimensions".
+    - Como o schema so aceita tipos escalares (string/number/color/boolean/
+      enum), os dados complexos (a lista de cenas) chegam como uma variavel
+      "string" (scenesJson) contendo JSON, que damos JSON.parse aqui.
+    - Os elementos visiveis temporizados tem class="clip" e data-start.
+    - Registramos UMA timeline GSAP em window.__timelines["dje-vsl"] (o linter
+      exige "window.__timelines"). A renderizacao e frame-a-frame/seek-driven:
+      o runtime busca os frames na timeline GSAP registrada. Usamos GSAP (CDN).
+
+  OBS: pode precisar de 1 ajuste fino apos o primeiro render real (a forma
+  exata de window.__timelines e de leitura das variaveis pelo runtime). A
+  leitura de variaveis aqui ja e defensiva (API de runtime -> defaults do
+  schema -> overrides via window/atributo).
+  ============================================================================
+-->
+<html lang="pt-BR"
+  data-composition-id="dje-vsl"
+  data-width="1080"
+  data-height="1920"
+  data-composition-duration="30"
+  data-composition-variables='[{"id":"audioUrl","label":"Audio URL","type":"string","default":""},{"id":"ctaHeadline","label":"CTA headline","type":"string","default":"Orçamento grátis"},{"id":"ctaPhone","label":"CTA phone","type":"string","default":"(11) 5891.6837"},{"id":"scenesJson","label":"Scenes JSON","type":"string","default":"[]"}]'>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=1080, height=1920, initial-scale=1" />
   <title>DJE - Composicao HyperFrames (vertical 9:16)</title>
-  <!--
-    ==========================================================================
-    DJE - Composicao HyperFrames / HeyGen Cloud Rendering (vertical 1080x1920).
-
-    PRIMEIRA VERSAO - A SER AJUSTADA APOS O PRIMEIRO RENDER REAL.
-    Nao tivemos acesso a documentacao oficial do framework de composicao da
-    HyperFrames (o site da HeyGen bloqueou o acesso com 403). Portanto esta
-    composicao foi escrita de forma DEFENSIVA e AUTOSSUFICIENTE:
-
-      - Roda standalone em qualquer navegador (abra o index.html direto).
-      - Le os valores padrao do atributo data-composition-variables do
-        elemento raiz (#composition). A HeyGen sobrescreve esses valores com
-        o objeto "variables" enviado no corpo do render.
-      - NAO depende de nenhuma CDN externa no momento do render (CSS/JS puro).
-      - Toda a animacao e dirigida por UM relogio unico getTime() que prefere
-        um tempo de seek global (caso a HyperFrames exponha um) e cai para o
-        currentTime do <audio>. Evitamos Date.now()/wall-clock para que a
-        renderizacao seja determinista e seek-driven (frame a frame).
-
-    Quando tivermos o primeiro render real, ajustar:
-      - O nome exato do hook de tempo/seek exposto pela HyperFrames (ver
-        bindRenderClock(): hoje suportamos varias convencoes comuns).
-      - Detalhes finos de easing/posicionamento das legendas e do CTA.
-    ==========================================================================
-  -->
+  <!-- GSAP via CDN (a timeline registrada e dirigida pelo seek do runtime). -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <style>
     :root {
       --w: 1080px;
@@ -77,16 +84,24 @@
       background:
         linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.65) 100%);
     }
-    /* Legenda estilo CapCut (palavra a palavra) */
-    #caption {
+    /* Camada de legendas (um bloco por cena, palavra a palavra) */
+    #captions {
       position: absolute;
       left: 60px;
       right: 60px;
       bottom: 360px;
-      text-align: center;
       z-index: 30;
+      pointer-events: none;
     }
-    #caption .word {
+    .caption-block {
+      position: absolute;
+      left: 0; right: 0;
+      bottom: 0;
+      text-align: center;
+      opacity: 0;
+      will-change: opacity;
+    }
+    .caption-block .word {
       display: inline-block;
       margin: 0 8px 10px 8px;
       font-size: 76px;
@@ -94,11 +109,8 @@
       font-weight: 800;
       letter-spacing: 0.5px;
       color: #ffffff;
-      text-transform: none;
       opacity: 0;
-      transform: translateY(18px) scale(0.92);
-      transition: opacity 0.12s linear, transform 0.12s ease-out;
-      /* Contorno + sombra para legibilidade sobre qualquer imagem */
+      will-change: opacity, transform;
       text-shadow:
         0 0 2px #000,
         2px 2px 0 #000,
@@ -107,11 +119,7 @@
         -2px -2px 0 #000,
         0 6px 22px rgba(0,0,0,0.85);
     }
-    #caption .word.on {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-    #caption .word.active {
+    .caption-block .word.active {
       color: #ffd34d;
     }
     /* Card flutuante de CTA */
@@ -129,15 +137,8 @@
       background: linear-gradient(135deg, rgba(10,40,90,0.92), rgba(0,90,160,0.92));
       border: 2px solid rgba(255,255,255,0.18);
       box-shadow: 0 18px 60px rgba(0,0,0,0.55);
-      opacity: 0.0;
-      transition: opacity 0.4s ease, transform 0.4s ease;
+      opacity: 0;
       will-change: opacity, transform;
-    }
-    #cta.show { opacity: 0.96; }
-    #cta.highlight {
-      transform: translateX(-50%) translateY(-18px) scale(1.08);
-      background: linear-gradient(135deg, rgba(0,120,210,0.96), rgba(0,170,120,0.96));
-      box-shadow: 0 26px 80px rgba(0,0,0,0.65);
     }
     #cta .headline {
       font-size: 52px;
@@ -153,233 +154,301 @@
       letter-spacing: 1px;
       text-shadow: 0 2px 12px rgba(0,0,0,0.7);
     }
-    /* Audio invisivel */
+    /* Audio invisivel (precisa TOCAR no preview; nao e mudo). */
     #narration { position: absolute; width: 1px; height: 1px; opacity: 0; }
   </style>
 </head>
 <body>
-  <!--
-    O atributo data-composition-variables traz valores de EXEMPLO para o
-    preview standalone (1-2 cenas placeholder). A HeyGen sobrescreve este
-    objeto com o "variables" enviado no render. O schema e exatamente:
-    { audioUrl, cta:{headline,phone}, scenes:[{index,imageUrl,text,start,duration}] }
-  -->
-  <div id="composition"
-    data-composition-variables='{"audioUrl":"https://vaidosas-videos.b-cdn.net/audios/exemplo.mp3","cta":{"headline":"Orçamento grátis","phone":"(11) 5891.6837"},"scenes":[{"index":1,"imageUrl":"https://picsum.photos/1080/1920?random=1","text":"Reforma travada e sem previsão de fim?","start":0,"duration":4.2},{"index":2,"imageUrl":"https://picsum.photos/1080/1920?random=2","text":"A DJE entrega obra com engenharia e prazo.","start":4.2,"duration":4.8}]}'>
-    <!-- as cenas e a legenda sao injetadas via JS -->
+  <div id="composition">
+    <!-- as cenas, legendas, CTA e audio sao injetados/animados via JS + GSAP -->
     <div id="scenes"></div>
     <div class="vignette"></div>
-    <div id="caption"></div>
+    <div id="captions"></div>
     <div id="cta">
       <div class="headline"></div>
       <div class="phone"></div>
     </div>
-    <audio id="narration" preload="auto" crossorigin="anonymous"></audio>
+    <!-- Elemento temporizado: class="clip" + data-start. Audio nao e mudo. -->
+    <audio id="narration" class="clip" data-start="0" preload="auto" crossorigin="anonymous"></audio>
   </div>
 
   <script>
   (function () {
     "use strict";
 
+    var COMPOSITION_ID = "dje-vsl";
+    var docEl = document.documentElement;
+
     // ----------------------------------------------------------------------
-    // 1) Carregar as variables (default do atributo; HeyGen sobrescreve)
+    // 1) Leitura ROBUSTA das variaveis.
+    //    Prioridade: API de runtime -> defaults do schema (data-composition-
+    //    variables) -> overrides (window.__variableValues / data-variable-
+    //    values). O schema e um ARRAY de definicoes; o objeto "variables" do
+    //    render casa por id. scenesJson e string -> JSON.parse para as cenas.
     // ----------------------------------------------------------------------
-    var root = document.getElementById("composition");
+    function fromRuntimeApi() {
+      try {
+        if (window.hyperframes && typeof window.hyperframes.getVariables === "function") {
+          var v = window.hyperframes.getVariables();
+          if (v && typeof v === "object") return v;
+        }
+      } catch (e) {}
+      try {
+        if (typeof window.getVariables === "function") {
+          var v2 = window.getVariables();
+          if (v2 && typeof v2 === "object") return v2;
+        }
+      } catch (e) {}
+      try {
+        if (window.hyperframes && window.hyperframes.variables && typeof window.hyperframes.variables === "object") {
+          return window.hyperframes.variables;
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    function defaultsFromSchema() {
+      var defs = {};
+      try {
+        var schema = JSON.parse(docEl.getAttribute("data-composition-variables") || "[]");
+        if (Array.isArray(schema)) {
+          for (var i = 0; i < schema.length; i++) {
+            var d = schema[i];
+            if (d && d.id != null) defs[d.id] = d.default;
+          }
+        }
+      } catch (e) {}
+      return defs;
+    }
+
+    function readOverrides() {
+      if (window.__variableValues && typeof window.__variableValues === "object") {
+        return window.__variableValues;
+      }
+      try {
+        var raw = docEl.getAttribute("data-variable-values");
+        if (raw) {
+          var parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object") return parsed;
+        }
+      } catch (e) {}
+      return null;
+    }
 
     function loadVariables() {
-      // Prioridade: objeto global (caso a HyperFrames injete) -> atributo data-*
-      if (window.COMPOSITION_VARIABLES && typeof window.COMPOSITION_VARIABLES === "object") {
-        return window.COMPOSITION_VARIABLES;
+      var runtime = fromRuntimeApi();
+      if (runtime) return runtime;
+      var vals = defaultsFromSchema();
+      var overrides = readOverrides();
+      if (overrides) {
+        for (var k in overrides) {
+          if (Object.prototype.hasOwnProperty.call(overrides, k)) vals[k] = overrides[k];
+        }
       }
-      var raw = root.getAttribute("data-composition-variables") || "{}";
+      return vals;
+    }
+
+    function parseScenes(scenesJson) {
+      var arr = [];
       try {
-        return JSON.parse(raw);
-      } catch (e) {
-        return {};
-      }
+        var parsed = JSON.parse(scenesJson || "[]");
+        if (Array.isArray(parsed)) arr = parsed;
+      } catch (e) { arr = []; }
+      return arr;
     }
 
     var vars = loadVariables();
-    var scenes = Array.isArray(vars.scenes) ? vars.scenes.slice() : [];
-    scenes.sort(function (a, b) { return (Number(a.start) || 0) - (Number(b.start) || 0); });
-
-    var cta = vars.cta || { headline: "", phone: "" };
     var audioUrl = vars.audioUrl || "";
+    var ctaHeadline = vars.ctaHeadline || "";
+    var ctaPhone = vars.ctaPhone || "";
+    var scenes = parseScenes(vars.scenesJson);
 
-    // Duracao total = soma das durations (ou start+duration do ultimo).
-    var totalDuration = 0;
-    for (var i = 0; i < scenes.length; i++) {
-      var s = scenes[i];
-      var end = (Number(s.start) || 0) + (Number(s.duration) || 0);
-      if (end > totalDuration) totalDuration = end;
+    // Preview standalone: se nao vieram cenas, usa um exemplo para visualizar.
+    var isPreviewExample = false;
+    if (!scenes.length) {
+      isPreviewExample = true;
+      scenes = [
+        { index: 1, imageUrl: "https://picsum.photos/1080/1920?random=1", text: "Reforma travada e sem previsão de fim?", start: 0, duration: 4.2 },
+        { index: 2, imageUrl: "https://picsum.photos/1080/1920?random=2", text: "A DJE entrega obra com engenharia e prazo.", start: 4.2, duration: 4.8 }
+      ];
+      if (!ctaHeadline) ctaHeadline = "Orçamento grátis";
+      if (!ctaPhone) ctaPhone = "(11) 5891.6837";
     }
 
+    // Ordena por start e calcula a duracao total (start+duration do ultimo).
+    scenes.sort(function (a, b) { return (Number(a.start) || 0) - (Number(b.start) || 0); });
+    var total = 0;
+    for (var si = 0; si < scenes.length; si++) {
+      var end = (Number(scenes[si].start) || 0) + (Number(scenes[si].duration) || 0);
+      if (end > total) total = end;
+    }
+    if (total <= 0) total = 30;
+    // Atualiza o metadado de duracao real calculada.
+    docEl.setAttribute("data-composition-duration", String(total));
+
     // ----------------------------------------------------------------------
-    // 2) Montar o DOM das cenas, legenda e CTA
+    // 2) Montagem do DOM: cenas (class="clip"+data-start), legendas, CTA, audio
     // ----------------------------------------------------------------------
     var scenesLayer = document.getElementById("scenes");
-    var sceneEls = [];
+    var captionsLayer = document.getElementById("captions");
+    var ctaEl = document.getElementById("cta");
+    var audioEl = document.getElementById("narration");
 
+    ctaEl.querySelector(".headline").textContent = ctaHeadline;
+    ctaEl.querySelector(".phone").textContent = ctaPhone;
+    if (audioUrl) audioEl.setAttribute("src", audioUrl);
+
+    var built = [];
     for (var k = 0; k < scenes.length; k++) {
       var sc = scenes[k];
-      var div = document.createElement("div");
-      div.className = "scene";
+      var start = Number(sc.start) || 0;
+      var dur = Number(sc.duration) || 0;
+
+      // Cena (clip temporizado)
+      var sceneDiv = document.createElement("div");
+      sceneDiv.className = "scene clip";
+      sceneDiv.setAttribute("data-start", String(start));
+      sceneDiv.setAttribute("data-duration", String(dur));
       var bg = document.createElement("div");
       bg.className = "bg";
       if (sc.imageUrl) {
         bg.style.backgroundImage = "url('" + String(sc.imageUrl).replace(/'/g, "%27") + "')";
       }
-      div.appendChild(bg);
-      scenesLayer.appendChild(div);
-      sceneEls.push({ el: div, bg: bg, data: sc, words: null, wordEls: null });
-    }
+      sceneDiv.appendChild(bg);
+      scenesLayer.appendChild(sceneDiv);
 
-    var captionEl = document.getElementById("caption");
-    var ctaEl = document.getElementById("cta");
-    ctaEl.querySelector(".headline").textContent = cta.headline || "";
-    ctaEl.querySelector(".phone").textContent = cta.phone || "";
-
-    var audioEl = document.getElementById("narration");
-    if (audioUrl) audioEl.setAttribute("src", audioUrl);
-
-    // Caches de palavras por cena (renderizadas sob demanda)
-    function buildWords(sceneObj) {
-      if (sceneObj.words) return;
-      var text = String(sceneObj.data.text || "").trim();
-      var parts = text.length ? text.split(/\s+/) : [];
-      sceneObj.words = parts;
-      sceneObj.wordEls = [];
-    }
-
-    function renderCaptionFor(sceneObj) {
-      buildWords(sceneObj);
-      if (captionEl.__owner === sceneObj) return; // ja montado
-      captionEl.innerHTML = "";
-      sceneObj.wordEls = [];
-      for (var w = 0; w < sceneObj.words.length; w++) {
+      // Bloco de legenda da cena (palavra a palavra)
+      var capBlock = document.createElement("div");
+      capBlock.className = "caption-block clip";
+      capBlock.setAttribute("data-start", String(start));
+      capBlock.setAttribute("data-duration", String(dur));
+      var words = String(sc.text || "").trim();
+      var parts = words.length ? words.split(/\s+/) : [];
+      var wordEls = [];
+      for (var w = 0; w < parts.length; w++) {
         var span = document.createElement("span");
         span.className = "word";
-        span.textContent = sceneObj.words[w];
-        captionEl.appendChild(span);
-        sceneObj.wordEls.push(span);
+        span.textContent = parts[w];
+        capBlock.appendChild(span);
+        wordEls.push(span);
       }
-      captionEl.__owner = sceneObj;
+      captionsLayer.appendChild(capBlock);
+
+      built.push({
+        scene: sceneDiv, bg: bg, capBlock: capBlock, wordEls: wordEls,
+        start: start, dur: dur, end: start + dur, isLast: (k === scenes.length - 1)
+      });
     }
 
     // ----------------------------------------------------------------------
-    // 3) Relogio unico (seek-driven). Determinista: NAO usa Date.now().
-    //    Prefere um tempo externo fornecido pela HyperFrames; cai para o
-    //    currentTime do <audio> no preview standalone.
+    // 3) UMA timeline GSAP (paused). O runtime faz seek frame-a-frame nela.
+    //    Posicionamos cada animacao no tempo absoluto (segundos).
     // ----------------------------------------------------------------------
-    var externalTime = null;
+    var tl = gsap.timeline({ paused: true });
 
-    function setRenderTime(t) {
-      var v = Number(t);
-      externalTime = isNaN(v) ? 0 : v;
-      try { if (audioEl && audioUrl) audioEl.currentTime = externalTime; } catch (e) {}
-      renderAt(externalTime);
-    }
+    for (var b = 0; b < built.length; b++) {
+      var it = built[b];
+      var fade = Math.min(0.5, it.dur > 0 ? it.dur / 4 : 0.3);
 
-    // Expoe varias convencoes comuns de hook de seek. Ajustar apos doc real.
-    window.setRenderTime = setRenderTime;
-    window.seek = setRenderTime;
-    window.__setRenderTime = setRenderTime;
-    window.HF_seek = setRenderTime;
+      // Fade in/out da cena.
+      tl.fromTo(it.scene, { opacity: 0 }, { opacity: 1, duration: fade, ease: "power1.out" }, it.start);
+      if (!it.isLast) {
+        tl.to(it.scene, { opacity: 0, duration: fade, ease: "power1.in" }, it.end - fade);
+      }
 
-    function getTime() {
-      if (externalTime !== null) return externalTime;
-      if (audioEl && audioUrl) return audioEl.currentTime || 0;
-      return 0;
-    }
+      // Ken Burns: zoom + pan, alternando a direcao por indice.
+      var zoomIn = (b % 2 === 0);
+      var fromScale = zoomIn ? 1.06 : 1.18;
+      var toScale = zoomIn ? 1.18 : 1.06;
+      var pan = zoomIn ? 24 : -24;
+      tl.fromTo(it.bg,
+        { scale: fromScale, x: -pan / 2, y: pan / 2 },
+        { scale: toScale, x: pan / 2, y: -pan / 2, duration: Math.max(it.dur, 0.1), ease: "none" },
+        it.start);
 
-    // ----------------------------------------------------------------------
-    // 4) Render de UM instante de tempo (chamado pelo relogio)
-    // ----------------------------------------------------------------------
-    function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
-    function easeInOut(p) { return p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; }
-
-    var lastSceneIndex = -1;
-
-    function renderAt(time) {
-      var active = -1;
-      for (var i = 0; i < sceneEls.length; i++) {
-        var d = sceneEls[i].data;
-        var start = Number(d.start) || 0;
-        var dur = Number(d.duration) || 0;
-        var end = start + dur;
-        var so = sceneEls[i];
-        if (time >= start && time < end) {
-          active = i;
-          var p = dur > 0 ? clamp((time - start) / dur, 0, 1) : 0;
-          so.el.style.opacity = "1";
-
-          // Ken Burns: zoom + leve pan, alternando direcao por indice.
-          var zoomIn = (i % 2 === 0);
-          var scale = zoomIn ? (1.06 + 0.12 * p) : (1.18 - 0.12 * p);
-          var panX = (zoomIn ? 1 : -1) * (easeInOut(p) * 26 - 13);
-          var panY = (zoomIn ? -1 : 1) * (easeInOut(p) * 26 - 13);
-          so.bg.style.transform = "scale(" + scale.toFixed(4) + ") translate(" + panX.toFixed(2) + "px," + panY.toFixed(2) + "px)";
-
-          // Legenda palavra a palavra (estilo CapCut)
-          renderCaptionFor(so);
-          var n = so.words.length;
-          if (n > 0) {
-            var visibleFloat = p * n;
-            var visible = Math.floor(visibleFloat) + 1;
-            if (visible > n) visible = n;
-            for (var wi = 0; wi < so.wordEls.length; wi++) {
-              var on = wi < visible;
-              var el = so.wordEls[wi];
-              if (on) el.classList.add("on"); else el.classList.remove("on");
-              if (wi === visible - 1) el.classList.add("active"); else el.classList.remove("active");
-            }
+      // Legenda: bloco fade in, palavras reveladas em sequencia, fade out.
+      tl.fromTo(it.capBlock, { autoAlpha: 0 }, { autoAlpha: 1, duration: fade, ease: "power1.out" }, it.start);
+      if (it.wordEls.length) {
+        var revealWindow = Math.max(it.dur - fade, 0.2);
+        var per = revealWindow / it.wordEls.length;
+        for (var wi = 0; wi < it.wordEls.length; wi++) {
+          var at = it.start + wi * per;
+          tl.fromTo(it.wordEls[wi],
+            { opacity: 0, y: 18, scale: 0.92 },
+            { opacity: 1, y: 0, scale: 1, duration: Math.min(0.25, per || 0.2), ease: "back.out(1.6)" },
+            at);
+          // destaque (cor) na palavra "ativa"
+          tl.set(it.wordEls[wi], { color: "#ffd34d" }, at);
+          if (wi > 0) {
+            tl.set(it.wordEls[wi - 1], { color: "#ffffff" }, at);
           }
-        } else {
-          so.el.style.opacity = "0";
         }
       }
-
-      // CTA: discreto durante o video; destaque na ultima cena.
-      var lastIndex = sceneEls.length - 1;
-      var ctaVisible = active >= 0;
-      var ctaHighlight = (active === lastIndex && lastIndex >= 0);
-      if (ctaVisible) ctaEl.classList.add("show"); else ctaEl.classList.remove("show");
-      if (ctaHighlight) ctaEl.classList.add("highlight"); else ctaEl.classList.remove("highlight");
-
-      lastSceneIndex = active;
-    }
-
-    // ----------------------------------------------------------------------
-    // 5) Loop de preview standalone (rAF). No render seek-driven da
-    //    HyperFrames, setRenderTime() dita o tempo a cada frame.
-    // ----------------------------------------------------------------------
-    function tick() {
-      if (externalTime === null) {
-        renderAt(getTime());
+      if (!it.isLast) {
+        tl.to(it.capBlock, { autoAlpha: 0, duration: fade, ease: "power1.in" }, it.end - fade);
       }
-      window.requestAnimationFrame(tick);
     }
 
-    // Tenta autoplay do audio apenas no preview (ignorado no render frame a frame).
-    function tryAutoplay() {
-      if (!audioUrl) return;
-      var pr = audioEl.play();
-      if (pr && typeof pr.catch === "function") { pr.catch(function () {}); }
+    // CTA: aparece discreto cedo e ganha destaque na ultima cena.
+    var ctaInAt = built.length ? Math.min(built[0].end, 1.5) : 0.5;
+    tl.fromTo(ctaEl, { opacity: 0, scale: 1 }, { opacity: 0.92, duration: 0.4, ease: "power1.out" }, ctaInAt);
+    if (built.length) {
+      var last = built[built.length - 1];
+      tl.to(ctaEl, {
+        opacity: 0.98,
+        scale: 1.08,
+        y: -18,
+        duration: 0.5,
+        ease: "back.out(1.4)"
+      }, last.start);
     }
 
-    // Sinaliza ao framework que a composicao esta pronta (varias convencoes).
-    function signalReady() {
-      try { window.__compositionReady = true; } catch (e) {}
-      try { if (typeof window.onCompositionReady === "function") window.onCompositionReady(totalDuration); } catch (e) {}
+    // Garante que a timeline tenha exatamente a duracao total (frame final).
+    tl.set({}, {}, total);
+
+    // ----------------------------------------------------------------------
+    // 4) REGISTRO da timeline (exigido pelo contrato / linter).
+    // ----------------------------------------------------------------------
+    window.__timelines = window.__timelines || {};
+    window.__timelines[COMPOSITION_ID] = tl;
+    window.__timeline = tl; // alias por seguranca
+
+    // Metadado util para o renderer.
+    window.getCompositionDuration = function () { return total; };
+
+    // ----------------------------------------------------------------------
+    // 5) Preview standalone (SO para visualizacao local). No render seek-driven
+    //    o runtime controla a timeline; nao usamos Date.now() (determinismo).
+    //    Detectamos o runtime de forma defensiva: se houver API de runtime ou
+    //    overrides reais, NAO damos play (deixamos o runtime conduzir).
+    // ----------------------------------------------------------------------
+    function runtimePresent() {
+      if (fromRuntimeApi()) return true;
+      if (window.__variableValues) return true;
+      if (window.__HYPERFRAMES_RENDER || window.__HF_RENDER) return true;
+      return false;
     }
 
-    // Expoe metadados uteis para o renderer.
-    window.getCompositionDuration = function () { return totalDuration; };
-
-    renderAt(0);
-    signalReady();
-    tryAutoplay();
-    window.requestAnimationFrame(tick);
+    if (!runtimePresent()) {
+      // Sincroniza o audio com o tempo da timeline durante o preview.
+      tl.eventCallback("onUpdate", function () {
+        if (!audioUrl) return;
+        try {
+          var t = tl.time();
+          if (Math.abs((audioEl.currentTime || 0) - t) > 0.25) audioEl.currentTime = t;
+        } catch (e) {}
+      });
+      try {
+        if (audioUrl) {
+          var pr = audioEl.play();
+          if (pr && typeof pr.catch === "function") pr.catch(function () {});
+        }
+      } catch (e) {}
+      tl.play(0);
+    } else {
+      // No render, deixe a timeline pausada no inicio; o runtime fara o seek.
+      tl.pause(0);
+    }
   })();
   </script>
 </body>

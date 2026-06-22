@@ -630,7 +630,7 @@
             {
               "id": "cfg-zone-0001",
               "name": "bunnyStorageZone",
-              "value": "YOUR_BUNNY_STORAGE_ZONE",
+              "value": "dje-audios",
               "type": "string"
             },
             {
@@ -642,13 +642,13 @@
             {
               "id": "cfg-phost-0003",
               "name": "bunnyPullHost",
-              "value": "vaidosas-videos.b-cdn.net",
+              "value": "dje-audios.b-cdn.net",
               "type": "string"
             },
             {
               "id": "cfg-zip-0004",
               "name": "hyperframesZipUrl",
-              "value": "https://YOUR_BUNNY/zona/composicao-dje.zip",
+              "value": "https://dje-audios.b-cdn.net/composicao-dje.zip",
               "type": "string"
             },
             {
@@ -675,11 +675,13 @@
       "parameters": {
         "method": "PUT",
         "url": "=https://{{ $('Config').first().json.bunnyStorageHost }}/{{ $('Config').first().json.bunnyStorageZone }}/audios/{{ $('Config').first().json.audioFileName }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
+            {
+              "name": "AccessKey",
+              "value": "YOUR_BUNNY_STORAGE_ACCESSKEY"
+            },
             {
               "name": "Content-Type",
               "value": "application/octet-stream"
@@ -699,18 +701,12 @@
         4180,
         400
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "BUNNY_CRED_PLACEHOLDER",
-          "name": "BunnyCDN Storage"
-        }
-      },
-      "notes": "PUT no Bunny Storage. A credencial httpHeaderAuth envia o header AccessKey com a senha da Storage Zone. Corpo binario (campo data) = narracao.mp3."
+      "notes": "PUT no Bunny Storage usando header inline (sem credencial). Cole a AccessKey real da Storage Zone 'dje-audios' no header AccessKey (substitua YOUR_BUNNY_STORAGE_ACCESSKEY). ATENCAO: a AccessKey e SECRETA - nao versione/commite com o valor real e, se ela ja vazou, regenere-a no painel do Bunny. Corpo binario (campo data) = narracao.mp3."
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// === Montar Variables (Run Once for All Items) ===\n// Monta o objeto variables (audioUrl + cta + scenes) e o corpo do render da\n// HyperFrames. A URL publica do audio e derivada do Pull Zone do Bunny.\nconst cfg = $('Config').first().json || {};\nconst ca = $('Concatenar Audio').first().json || {};\nconst scenes = ca.scenes || [];\nconst articleTitle = ca.articleTitle || 'DJE';\nconst pullHost = String(cfg.bunnyPullHost || '').replace(/^https?:\\/\\//, '').replace(/\\/$/, '');\nconst audioFileName = cfg.audioFileName || 'narracao.mp3';\nconst audioUrl = 'https://' + pullHost + '/audios/' + audioFileName;\nconst variables = {\n  audioUrl: audioUrl,\n  cta: { headline: 'Orçamento grátis', phone: '(11) 5891.6837' },\n  scenes: scenes\n};\nconst renderBody = {\n  project: { type: 'url', url: cfg.hyperframesZipUrl },\n  fps: 30,\n  quality: 'standard',\n  format: 'mp4',\n  resolution: '1080p',\n  aspect_ratio: '9:16',\n  composition: 'index.html',\n  variables: variables,\n  title: articleTitle\n};\nreturn [{ json: { variables: variables, renderBody: renderBody, audioUrl: audioUrl, articleTitle: articleTitle } }];"
+        "jsCode": "// === Montar Variables (Run Once for All Items) ===\n// Monta o objeto variables PLANO (casando com os ids declarados na composicao:\n// audioUrl, ctaHeadline, ctaPhone, scenesJson) e o corpo do render da HyperFrames.\n// scenesJson e uma string (JSON.stringify) porque a composicao so aceita tipos\n// escalares. A URL publica do audio e derivada do Pull Zone do Bunny.\nconst cfg = $('Config').first().json || {};\nconst ca = $('Concatenar Audio').first().json || {};\nconst scenes = ca.scenes || [];\nconst articleTitle = ca.articleTitle || 'DJE';\nconst pullHost = String(cfg.bunnyPullHost || '').replace(/^https?:\\/\\//, '').replace(/\\/$/, '');\nconst audioFileName = cfg.audioFileName || 'narracao.mp3';\nconst audioUrl = 'https://' + pullHost + '/audios/' + audioFileName;\nconst variables = {\n  audioUrl: audioUrl,\n  ctaHeadline: 'Orçamento grátis',\n  ctaPhone: '(11) 5891.6837',\n  scenesJson: JSON.stringify(scenes)\n};\nconst renderBody = {\n  project: { type: 'url', url: cfg.hyperframesZipUrl },\n  fps: 30,\n  quality: 'standard',\n  format: 'mp4',\n  resolution: '1080p',\n  aspect_ratio: '9:16',\n  composition: 'index.html',\n  variables: variables,\n  title: articleTitle\n};\nreturn [{ json: { variables: variables, renderBody: renderBody, audioUrl: audioUrl, articleTitle: articleTitle } }];"
       },
       "id": "hf000004-0004-4a04-8a04-montarvariables0",
       "name": "Montar Variables",
