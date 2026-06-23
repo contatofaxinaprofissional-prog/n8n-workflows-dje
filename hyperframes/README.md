@@ -63,7 +63,7 @@ Demais regras do contrato implementadas:
 
 ```json
 {
-  "audioUrl": "https://dje-audios.b-cdn.net/audios/narracao_xxx.mp3",
+  "audioUrl": "https://dje-audios.b-cdn.net/narracao_xxx.mp3",
   "ctaHeadline": "Orçamento grátis",
   "ctaPhone": "(11) 5891.6837",
   "scenesJson": "[{\"index\":1,\"imageUrl\":\"https://...\",\"text\":\"...\",\"start\":0,\"duration\":6.8}]"
@@ -169,8 +169,8 @@ regenere-a no painel do Bunny** (Storage Zone → FTP & API Access) e atualize o
 header.
 
 > O áudio (`narracao.mp3`) é gerado e hospedado automaticamente pelo workflow no
-> caminho `audios/<nome>.mp3` da Storage Zone `dje-audios`, e a URL pública
-> (`https://dje-audios.b-cdn.net/audios/<nome>.mp3`) é injetada em
+> **root** da Storage Zone `dje-audios` (caminho `<nome>.mp3`), e a URL pública
+> (`https://dje-audios.b-cdn.net/<nome>.mp3`) é injetada em
 > `variables.audioUrl`.
 
 ---

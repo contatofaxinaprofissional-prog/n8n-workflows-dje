@@ -674,7 +674,7 @@
     {
       "parameters": {
         "method": "PUT",
-        "url": "=https://{{ $('Config').first().json.bunnyStorageHost }}/{{ $('Config').first().json.bunnyStorageZone }}/audios/{{ $('Config').first().json.audioFileName }}",
+        "url": "=https://{{ $('Config').first().json.bunnyStorageHost }}/{{ $('Config').first().json.bunnyStorageZone }}/{{ $('Config').first().json.audioFileName }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -706,7 +706,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// === Montar Variables (Run Once for All Items) ===\n// Monta o objeto variables PLANO (casando com os ids declarados na composicao:\n// audioUrl, ctaHeadline, ctaPhone, scenesJson) e o corpo do render da HyperFrames.\n// scenesJson e uma string (JSON.stringify) porque a composicao so aceita tipos\n// escalares. A URL publica do audio e derivada do Pull Zone do Bunny.\nconst cfg = $('Config').first().json || {};\nconst ca = $('Concatenar Audio').first().json || {};\nconst scenes = ca.scenes || [];\nconst articleTitle = ca.articleTitle || 'DJE';\nconst pullHost = String(cfg.bunnyPullHost || '').replace(/^https?:\\/\\//, '').replace(/\\/$/, '');\nconst audioFileName = cfg.audioFileName || 'narracao.mp3';\nconst audioUrl = 'https://' + pullHost + '/audios/' + audioFileName;\nconst variables = {\n  audioUrl: audioUrl,\n  ctaHeadline: 'Orçamento grátis',\n  ctaPhone: '(11) 5891.6837',\n  scenesJson: JSON.stringify(scenes)\n};\nconst renderBody = {\n  project: { type: 'url', url: cfg.hyperframesZipUrl },\n  fps: 30,\n  quality: 'standard',\n  format: 'mp4',\n  resolution: '1080p',\n  aspect_ratio: '9:16',\n  composition: 'index.html',\n  variables: variables,\n  title: articleTitle\n};\nreturn [{ json: { variables: variables, renderBody: renderBody, audioUrl: audioUrl, articleTitle: articleTitle } }];"
+        "jsCode": "// === Montar Variables (Run Once for All Items) ===\n// Monta o objeto variables PLANO (casando com os ids declarados na composicao:\n// audioUrl, ctaHeadline, ctaPhone, scenesJson) e o corpo do render da HyperFrames.\n// scenesJson e uma string (JSON.stringify) porque a composicao so aceita tipos\n// escalares. A URL publica do audio e derivada do Pull Zone do Bunny.\nconst cfg = $('Config').first().json || {};\nconst ca = $('Concatenar Audio').first().json || {};\nconst scenes = ca.scenes || [];\nconst articleTitle = ca.articleTitle || 'DJE';\nconst pullHost = String(cfg.bunnyPullHost || '').replace(/^https?:\\/\\//, '').replace(/\\/$/, '');\nconst audioFileName = cfg.audioFileName || 'narracao.mp3';\nconst audioUrl = 'https://' + pullHost + '/' + audioFileName;\nconst variables = {\n  audioUrl: audioUrl,\n  ctaHeadline: 'Orçamento grátis',\n  ctaPhone: '(11) 5891.6837',\n  scenesJson: JSON.stringify(scenes)\n};\nconst renderBody = {\n  project: { type: 'url', url: cfg.hyperframesZipUrl },\n  fps: 30,\n  quality: 'standard',\n  format: 'mp4',\n  resolution: '1080p',\n  aspect_ratio: '9:16',\n  composition: 'index.html',\n  variables: variables,\n  title: articleTitle\n};\nreturn [{ json: { variables: variables, renderBody: renderBody, audioUrl: audioUrl, articleTitle: articleTitle } }];"
       },
       "id": "hf000004-0004-4a04-8a04-montarvariables0",
       "name": "Montar Variables",
