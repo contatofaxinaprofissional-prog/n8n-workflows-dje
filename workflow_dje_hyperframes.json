@@ -721,14 +721,16 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.heygen.com/v3/hyperframes/renders",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Content-Type",
               "value": "application/json"
+            },
+            {
+              "name": "x-api-key",
+              "value": "YOUR_HEYGEN_API_KEY"
             }
           ]
         },
@@ -745,13 +747,7 @@
         4620,
         400
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "HEYGEN_CRED_PLACEHOLDER",
-          "name": "HeyGen API"
-        }
-      },
-      "notes": "POST HyperFrames. Credencial httpHeaderAuth envia o header x-api-key com a chave da HeyGen. Resposta 202: { data: { render_id, status } }."
+      "notes": "POST HyperFrames. A chave da HeyGen agora vai como header inline x-api-key (sem credencial). Cole a chave real da HeyGen no header x-api-key (substitua YOUR_HEYGEN_API_KEY) - nao versione/commite o valor real. Resposta 202: { data: { render_id, status } }."
     },
     {
       "parameters": {
@@ -772,8 +768,15 @@
       "parameters": {
         "method": "GET",
         "url": "=https://api.heygen.com/v3/hyperframes/renders/{{ $('Criar Render').first().json.data.render_id }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "YOUR_HEYGEN_API_KEY"
+            }
+          ]
+        },
         "options": {}
       },
       "id": "hf000007-0007-4a07-8a07-consultarrender0",
@@ -784,16 +787,10 @@
         5060,
         400
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "HEYGEN_CRED_PLACEHOLDER",
-          "name": "HeyGen API"
-        }
-      },
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "GET status do render. status: queued|rendering|completed|failed. completed traz video_url."
+      "notes": "GET status do render. A chave da HeyGen agora vai como header inline x-api-key (sem credencial). Cole a chave real da HeyGen no header x-api-key (substitua YOUR_HEYGEN_API_KEY) - nao versione/commite o valor real. status: queued|rendering|completed|failed. completed traz video_url."
     },
     {
       "parameters": {
