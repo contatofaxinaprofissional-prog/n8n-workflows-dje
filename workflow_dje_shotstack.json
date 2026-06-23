@@ -1,0 +1,1293 @@
+{
+  "name": "DJE - Videos Verticais Shotstack (Cloud Render)",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Gerador de Video DJE - Facebook Ads",
+        "formDescription": "Cole o JSON completo (gerado pelo workflow anterior) no campo abaixo.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Dados JSON",
+              "fieldType": "textarea",
+              "requiredField": true,
+              "placeholder": "Cole aqui o objeto/array JSON completo..."
+            },
+            {
+              "fieldLabel": "Voz",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Orus"
+                  },
+                  {
+                    "option": "Charon"
+                  },
+                  {
+                    "option": "Kore"
+                  },
+                  {
+                    "option": "Puck"
+                  },
+                  {
+                    "option": "Aoede"
+                  },
+                  {
+                    "option": "Fenrir"
+                  },
+                  {
+                    "option": "Leda"
+                  },
+                  {
+                    "option": "Zephyr"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Estilo Emocional",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "friendly"
+                  },
+                  {
+                    "option": "hopeful"
+                  },
+                  {
+                    "option": "calm"
+                  },
+                  {
+                    "option": "excited"
+                  },
+                  {
+                    "option": "serious"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Musica de Fundo (URL)",
+              "fieldType": "text",
+              "requiredField": false,
+              "placeholder": "Opcional: URL de uma musica de fundo (mp3). Deixe vazio para nao usar."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a851aa61-5043-41e7-a2db-6817aa410036",
+      "name": "Formulario de Video",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        400
+      ],
+      "webhookId": "9e5e862d-7ec6-4099-a87e-77dbe16133a4"
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// === Parse JSON Entrada ===\n// Recebe o texto colado no campo \"Dados JSON\" do formulario e extrai os campos.\nconst first = $input.first().json || {};\nconst raw = first[\"Dados JSON\"] || first.dadosJson || first.data || first.json || \"\";\n\nfunction cleanAndParse(input) {\n  if (input == null) return {};\n  if (typeof input === 'object') return input;\n  let s = String(input).trim();\n  // remove cercas markdown ```json ... ```\n  s = s.replace(/```json/gi, '').replace(/```/g, '').trim();\n  // localiza o primeiro { ou [\n  const firstObj = s.indexOf('{');\n  const firstArr = s.indexOf('[');\n  let start = -1;\n  if (firstArr !== -1 && (firstArr < firstObj || firstObj === -1)) {\n    start = firstArr;\n  } else {\n    start = firstObj;\n  }\n  if (start > 0) s = s.slice(start);\n  // localiza o ultimo } ou ]\n  const lastObj = s.lastIndexOf('}');\n  const lastArr = s.lastIndexOf(']');\n  const end = Math.max(lastObj, lastArr);\n  if (end !== -1) s = s.slice(0, end + 1);\n  try {\n    return JSON.parse(s);\n  } catch (e) {\n    // tenta remover virgulas pendentes\n    try {\n      return JSON.parse(s.replace(/,\\s*([}\\]])/g, '$1'));\n    } catch (e2) {\n      throw new Error('Nao foi possivel parsear o JSON de entrada: ' + e2.message);\n    }\n  }\n}\n\nlet parsed = cleanAndParse(raw);\nif (Array.isArray(parsed)) parsed = parsed[0] || {};\n\nconst jtbd = parsed.jtbd || {};\nconst pesquisa = parsed.pesquisa || {};\nconst estrategia = parsed.estrategia || {};\n\nlet numClips = parseInt(parsed.numClips, 10);\nif (isNaN(numClips) || numClips < 14) numClips = 14;\n\nlet duracao = parseInt(parsed.duracaoClip, 10);\nif (isNaN(duracao) || duracao <= 0) duracao = 4;\n\nconst servico = parsed.servico || parsed.keyword || 'Servico DJE';\nconst metaDesc = parsed.observacoes || (estrategia && estrategia.puv) || '';\n\nreturn [{\n  json: {\n    articleTitle: servico,\n    servico: servico,\n    keyword: parsed.keyword || '',\n    plataforma: parsed.plataforma || 'Facebook Ads',\n    metaDescription: metaDesc,\n    observacoes: parsed.observacoes || '',\n    numberOfClips: numClips,\n    duration: duracao,\n    persona: parsed.persona || '',\n    empresa: parsed.empresa || 'DJE Construcao e Reformas',\n    jtbd: jtbd,\n    pesquisa: pesquisa,\n    estrategia: estrategia\n  }\n}];\n"
+      },
+      "id": "e477e678-b4dc-4de1-8b42-ff2fb498e3af",
+      "name": "Parse JSON Entrada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7e9b913d-e3f1-4fef-a844-36a8be5517ad",
+              "name": "articleTitle",
+              "value": "={{ $json.articleTitle }}",
+              "type": "string"
+            },
+            {
+              "id": "d13c52f8-2d7e-470b-a18d-7ff472b99687",
+              "name": "metaDescription",
+              "value": "={{ $json.metaDescription }}",
+              "type": "string"
+            },
+            {
+              "id": "eb5c7e18-cde9-4f3f-af38-41b9aadb9991",
+              "name": "numberOfClips",
+              "value": "={{ $json.numberOfClips }}",
+              "type": "number"
+            },
+            {
+              "id": "2ae9c6f3-9dd8-415d-8d0f-de44146052d1",
+              "name": "duration",
+              "value": "={{ $json.duration }}",
+              "type": "number"
+            },
+            {
+              "id": "a9897390-5dd8-444a-ab74-4c3163917b95",
+              "name": "plataforma",
+              "value": "={{ $json.plataforma }}",
+              "type": "string"
+            },
+            {
+              "id": "454c4437-5f7d-4a13-a334-83fea1cf3400",
+              "name": "empresa",
+              "value": "={{ $json.empresa }}",
+              "type": "string"
+            },
+            {
+              "id": "2bbdf8ce-17e8-440b-a78d-02a4200575e2",
+              "name": "persona",
+              "value": "={{ $json.persona }}",
+              "type": "string"
+            },
+            {
+              "id": "f3ff6362-fd54-4aa2-97cc-523d9ce7ea26",
+              "name": "jtbd",
+              "value": "={{ $json.jtbd }}",
+              "type": "object"
+            },
+            {
+              "id": "c3982bd6-1366-4afc-b075-95954dc7fd59",
+              "name": "pesquisa",
+              "value": "={{ $json.pesquisa }}",
+              "type": "object"
+            },
+            {
+              "id": "a36dd029-11ba-4a7c-b1c0-6a574336e982",
+              "name": "estrategia",
+              "value": "={{ $json.estrategia }}",
+              "type": "object"
+            },
+            {
+              "id": "bd42ba83-c435-4e85-8183-e3f9cbad850b",
+              "name": "voz",
+              "value": "={{ $('Formulario de Video').item.json['Voz'] || 'pt-BR-MacerioMultilingualNeural' }}",
+              "type": "string"
+            },
+            {
+              "id": "9766eeaa-270c-42b1-b09e-34f283cd2d18",
+              "name": "estiloEmocional",
+              "value": "={{ $('Formulario de Video').item.json['Estilo Emocional'] || 'friendly' }}",
+              "type": "string"
+            },
+            {
+              "id": "85c96c3d-3963-4185-8966-6ac5a1ba723b",
+              "name": "musicaFundo",
+              "value": "={{ $('Formulario de Video').item.json['Musica de Fundo (URL)'] || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b1261d8b-ac4e-41b9-af66-13a233c7a9ce",
+      "name": "Edit Fields1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Você é o \"Agente Diretor\" e Copywriter-chefe da DJE Construção e Reformas (São Paulo, 19 anos de experiência). Você domina copywriting de resposta direta e direção de arte cinematográfica, no nível dos maiores anúncios de conversão do Brasil.\n\nMISSÃO: escrever o roteiro de um VÍDEO VERTICAL (9:16, 1080x1920) para FACEBOOK/INSTAGRAM ADS cujo ÚNICO objetivo é CONVERSÃO em mensagens no WhatsApp.\n\n=== DADOS ESTRATÉGICOS (sua matéria-prima — USE, não ignore) ===\n- Serviço/Tema: {{ $json.articleTitle }}\n- Plataforma: {{ $json.plataforma }}\n- Empresa: {{ $json.empresa }}\n- Observações/Meta: {{ $json.metaDescription }}\n- PERSONA: {{ $json.persona }}\n- JTBD: {{ JSON.stringify($json.jtbd) }}\n- PESQUISA: {{ JSON.stringify($json.pesquisa) }}\n- ESTRATÉGIA: {{ JSON.stringify($json.estrategia) }}\n\nREGRA DE OURO (a diferença entre um vídeo amador e um campeão): a ESTRATÉGIA e o JTBD acima já trazem a big idea, a PUV, o mecanismo único, o inimigo da história, a jornada emocional (dor, agitação, descoberta, transformação, resultado, cta), headlines e FRASES REAIS DO CLIENTE (voc_frases). Você DEVE construir o roteiro EM CIMA desses elementos, jamais um roteiro genérico. Se existir estrategia.jornada_emocional, use-a como espinha dorsal da narração. Incorpore ao menos uma frase de jtbd.voc_frases de forma quase literal (a linguagem do próprio cliente). Cite o mecanismo único e ATAQUE o inimigo da história nominalmente.\n\n=== ESTRUTURA (mínimo {{ $json.numberOfClips }} clips, nunca menos de 14) ===\nQuando lida em sequência, a narração dos clips deve soar como UM ÚNICO discurso fluido e hipnótico (uma VSL curta), não 14 frases soltas. Cada clipe deve \"puxar\" o próximo com um loop aberto/curiosidade para segurar a retenção. Distribua as fases nesta ordem:\n1. HOOK (clipe 1-2): pare o scroll nos 3 primeiros segundos com uma pergunta-soco ou afirmação específica e inesperada sobre a dor/serviço. PROIBIDO clichê (\"Você já...\", \"Cansado de...\", \"Imagine...\", \"E se eu te dissesse\").\n2. DOR (clipe 3-4): nomeie a dor exata da persona, com as palavras dela.\n3. AGITAÇÃO (clipe 5-7): aumente o custo de não resolver (financeiro, jurídico, emocional, reputação). Use o inimigo da história.\n4. DESCOBERTA (clipe 8-9): apresente a DJE e o mecanismo único como a virada de chave.\n5. TRANSFORMAÇÃO (clipe 10-11): mostre o processo (engenharia, ART, supervisão, equipe própria multidisciplinar).\n6. RESULTADO/PROVA (clipe 12-13): o \"depois\" emocional somado à prova (19 anos, portfólio, conformidade técnica).\n7. CTA (clipe final): chamada direta e elegante para o WhatsApp (11) 5891.6837 (orçamento grátis), com urgência sutil e sofisticada.\n\n=== REGRAS DE COPY (texto_narracao) ===\n- SEMPRE em português do Brasil. Tom masculino, de autoridade técnica, acolhedor e confiante.\n- MÁXIMO 12 a 15 palavras por clipe. Frases curtas, com ritmo de pausa dramática.\n- Fale com UMA pessoa (a persona), no \"você\". Seja concreto e específico; nunca corporativo ou vago.\n- Verbos fortes, zero advérbio inútil, zero jargão de marketing.\n\n=== LEGIBILIDADE PARA VOZ (TTS) ===\n- A narração será lida por uma voz de IA. Escreva sempre a marca como \"DJE\" (a pronúncia correta, dê-jota-é, é tratada na geração de voz).\n- Evite siglas e estrangeirismos ambíguos; se precisar usar uma sigla, prefira escrevê-la por extenso quando fizer sentido.\n- Escreva o telefone de WhatsApp de forma clara para leitura: (11) 5891.6837.\n- Use pontuação que ajude o ritmo (vírgulas e pontos) para pausas naturais.\n\n=== REGRAS DE IMAGEM (imagem_prompt) ===\n- SEMPRE em INGLÊS, descritivo e cinematográfico, vertical 9:16, fotorrealista, alta qualidade.\n- Sempre inclua: \"Cinematic vertical photography 9:16, photorealistic, high quality, shallow depth of field, warm natural lighting, Sao Paulo Brazil urban context\".\n- HOOK: \"extreme close-up, dramatic angle, camera 1 meter away\".\n- DOR/AGITACAO: \"wide shot, worried property owner inspecting damage, camera 3 meters away\".\n- DESCOBERTA/TRANSFORMACAO: \"wide shot, authentic Brazilian construction workers in realistic work attire, actively working, engineer supervising, camera 3.5 meters away\".\n- RESULTADO: \"medium wide shot, stunning finished premium renovation, satisfied client, camera 3 meters away\".\n- CTA: \"very wide shot, happy property owner smiling in renovated space, bright natural light, camera 4 meters away\".\n- NUNCA use prompts negativos. Comande perfeição: \"flawless realistic anatomy, precise hands, confident posture\".\n\nFORMATO DE SAÍDA: responda APENAS com JSON válido, sem texto extra, sem markdown, no formato exato:\n{\n  \"roteiro_video\": [\n    { \"clip\": 1, \"fase\": \"hook\", \"imagem_prompt\": \"...english...\", \"texto_narracao\": \"...portugues curto...\" }\n  ]\n}\nCada objeto do array deve conter exatamente as chaves: clip, fase, imagem_prompt, texto_narracao.",
+              "role": "user"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "id": "64eff1bd-ebe5-4e79-8462-d5ca13e56228",
+      "name": "Agente Diretor",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        660,
+        400
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAI_CRED_PLACEHOLDER",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// === Parser Roteiro ===\n// Extrai o roteiro do Agente Diretor cobrindo TODAS as formas de saida do node OpenAI,\n// inclusive a Responses API nova (output[0].content[0].text com o JSON dentro).\nconst item = $input.first().json || {};\n\nfunction extractJson(s) {\n  s = String(s).replace(/```json/gi, '').replace(/```/g, '').trim();\n  const fo = s.indexOf('{');\n  const fa = s.indexOf('[');\n  let start = -1;\n  if (fa !== -1 && (fa < fo || fo === -1)) start = fa; else start = fo;\n  if (start > 0) s = s.slice(start);\n  const lo = s.lastIndexOf('}');\n  const la = s.lastIndexOf(']');\n  const end = Math.max(lo, la);\n  if (end !== -1) s = s.slice(0, end + 1);\n  try { return JSON.parse(s); }\n  catch (e) {\n    try { return JSON.parse(s.replace(/,\\s*([}\\]])/g, '$1')); }\n    catch (e2) { return null; }\n  }\n}\n\nfunction looksLikeRoteiro(arr) {\n  if (!Array.isArray(arr) || arr.length === 0) return false;\n  const c = arr[0];\n  if (!c || typeof c !== 'object') return false;\n  return ('imagem_prompt' in c) || ('image_prompt' in c) || ('imagemPrompt' in c) ||\n         ('prompt' in c) || ('texto_narracao' in c) || ('narracao' in c) ||\n         ('narration' in c) || ('fase' in c);\n}\n\nfunction findRoteiro(obj) {\n  if (!obj || typeof obj !== 'object') return null;\n  if (Array.isArray(obj)) return looksLikeRoteiro(obj) ? obj : null;\n  if (Array.isArray(obj.roteiro_video) && obj.roteiro_video.length) return obj.roteiro_video;\n  for (const k of Object.keys(obj)) {\n    if (Array.isArray(obj[k]) && looksLikeRoteiro(obj[k])) return obj[k];\n  }\n  return null;\n}\n\nfunction deepFind(node, depth) {\n  if (node == null || depth > 8) return null;\n  if (typeof node === 'string') {\n    const parsed = extractJson(node);\n    if (parsed) {\n      const r = findRoteiro(parsed);\n      if (r) return r;\n      return deepFind(parsed, depth + 1);\n    }\n    return null;\n  }\n  if (typeof node === 'object') {\n    const r = findRoteiro(node);\n    if (r) return r;\n    const vals = Array.isArray(node) ? node : Object.keys(node).map(function (k) { return node[k]; });\n    for (const v of vals) {\n      const d = deepFind(v, depth + 1);\n      if (d) return d;\n    }\n  }\n  return null;\n}\n\nlet roteiro = deepFind(item, 0);\n\nif (!roteiro) {\n  const keys = Object.keys(item || {});\n  let sample = '';\n  try { sample = JSON.stringify(item); } catch (e) { sample = String(item); }\n  if (sample && sample.length > 600) sample = sample.slice(0, 600);\n  throw new Error('Parser Roteiro: nao encontrei roteiro_video. Keys: ' + JSON.stringify(keys) + '. Amostra: ' + sample);\n}\n\nconst ctx = $('Edit Fields1').first().json || {};\nroteiro = roteiro.map(function (c, i) {\n  return {\n    clip: c.clip || (i + 1),\n    fase: c.fase || '',\n    imagem_prompt: c.imagem_prompt || c.image_prompt || c.imagemPrompt || c.prompt || '',\n    texto_narracao: c.texto_narracao || c.narracao || c.narration || '',\n    articleTitle: ctx.articleTitle || '',\n    duration: ctx.duration || 4\n  };\n});\n\nreturn [{ json: { roteiro_video: roteiro } }];\n"
+      },
+      "id": "62ae6ea6-ca84-42b4-b88a-38467e5e9871",
+      "name": "Parser Roteiro",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "roteiro_video",
+        "include": "noOtherFields",
+        "options": {}
+      },
+      "id": "4b2e9370-8b31-4b1b-abaf-697099d213a8",
+      "name": "item lists",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [ { parts: [ { text: ('Narre em tom de comercial premium, persuasivo e ' + ($('Formulario de Video').first().json['Estilo Emocional'] || 'confiante') + \", com ritmo dinâmico e dicção masculina de autoridade. Pronuncie a marca 'DJE' como 'dê-jóta-é' (soletrando as letras D, J, E em português) e leia o telefone de WhatsApp em dígitos, de forma natural e pausada: \" + ($json.texto_narracao || '')) } ] } ], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: ($('Formulario de Video').first().json['Voz'] || 'Orus') } } } } }) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 8000
+            }
+          }
+        }
+      },
+      "id": "b2c3d4e5-0005-4a05-8a05-geminittsnode5",
+      "name": "Gemini TTS (Orus)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "position": [
+        1320,
+        160
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "GEMINI_CRED_PLACEHOLDER",
+          "name": "Gemini API"
+        }
+      },
+      "notes": "TTS via Google Gemini 3.1 Flash. A credencial httpHeaderAuth envia o header x-goog-api-key com a chave do Google AI Studio. Resposta JSON com audio base64 (PCM 16-bit mono 24kHz)."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// === PCM para WAV (Run Once for Each Item) ===\n// Converte o audio base64 do Gemini TTS (PCM linear 16-bit mono 24000 Hz) em um WAV valido,\n// prependendo um cabecalho WAV de 44 bytes (RIFF/WAVE/fmt /data).\nconst resp = $input.item.json || {};\n\nfunction findInline(obj, depth) {\n  if (obj == null || depth > 8) return null;\n  if (typeof obj === 'object') {\n    if (obj.inlineData && obj.inlineData.data) return obj.inlineData.data;\n    if (obj.inline_data && obj.inline_data.data) return obj.inline_data.data;\n    const vals = Array.isArray(obj) ? obj : Object.keys(obj).map(function (k) { return obj[k]; });\n    for (const v of vals) {\n      const r = findInline(v, depth + 1);\n      if (r) return r;\n    }\n  }\n  return null;\n}\n\nlet b64 = '';\ntry { b64 = resp.candidates[0].content.parts[0].inlineData.data; } catch (e) { b64 = ''; }\nif (!b64) { try { b64 = resp.candidates[0].content.parts[0].inline_data.data; } catch (e) { b64 = ''; } }\nif (!b64) b64 = findInline(resp, 0) || '';\nif (!b64) {\n  throw new Error('PCM para WAV: nao encontrei o audio base64 em candidates[0].content.parts[0].inlineData.data');\n}\n\nconst pcm = Buffer.from(b64, 'base64');\nconst numChannels = 1;\nconst sampleRate = 24000;\nconst bitsPerSample = 16;\nconst byteRate = sampleRate * numChannels * bitsPerSample / 8;\nconst blockAlign = numChannels * bitsPerSample / 8;\nconst dataSize = pcm.length;\n\nconst header = Buffer.alloc(44);\nheader.write('RIFF', 0, 'ascii');\nheader.writeUInt32LE(36 + dataSize, 4);\nheader.write('WAVE', 8, 'ascii');\nheader.write('fmt ', 12, 'ascii');\nheader.writeUInt32LE(16, 16);\nheader.writeUInt16LE(1, 20);\nheader.writeUInt16LE(numChannels, 22);\nheader.writeUInt32LE(sampleRate, 24);\nheader.writeUInt32LE(byteRate, 28);\nheader.writeUInt16LE(blockAlign, 32);\nheader.writeUInt16LE(bitsPerSample, 34);\nheader.write('data', 36, 'ascii');\nheader.writeUInt32LE(dataSize, 40);\n\nconst wavBuffer = Buffer.concat([header, pcm]);\n\nreturn {\n  json: Object.assign({}, resp, { audioFormat: 'wav', sampleRate: sampleRate, audioBytes: wavBuffer.length }),\n  binary: { data: await this.helpers.prepareBinaryData(wavBuffer, 'audio.wav', 'audio/wav') }\n};"
+      },
+      "id": "c3d4e5f6-0006-4a06-8a06-pcmparawav0006",
+      "name": "PCM para WAV",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// === Parse Generated Prompts ===\n// Gera taskUUID (UUIDv4) e final_prompt por clip; define resolucao vertical 1080x1920.\n// GUARDA: bloqueia clips com imagem_prompt vazio (evita positivePrompt vazio na RunWare).\nfunction uuidv4() {\n  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {\n    const r = Math.random() * 16 | 0;\n    const v = c === 'x' ? r : (r & 0x3 | 0x8);\n    return v.toString(16);\n  });\n}\nconst items = $input.all();\nconst out = [];\nfor (let idx = 0; idx < items.length; idx++) {\n  const it = items[idx];\n  const j = it.json || {};\n  const clipNum = j.clip || (idx + 1);\n  const final_prompt = (j.imagem_prompt || j.final_prompt || '').toString().trim();\n  if (final_prompt.length < 2) {\n    throw new Error('Parse Generated Prompts: imagem_prompt vazio no clip ' + clipNum + '. Keys recebidas: ' + JSON.stringify(Object.keys(j)));\n  }\n  out.push({\n    json: {\n      ...j,\n      final_prompt: final_prompt,\n      taskUUID: uuidv4(),\n      width: 1536,\n      height: 2752,\n      texto_narracao: j.texto_narracao || '',\n      clip: j.clip\n    }\n  });\n}\nreturn out;\n"
+      },
+      "id": "448dd614-5dee-46b8-8484-1dc293614f6c",
+      "name": "Parse Generated Prompts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.runware.ai/v1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=[\n  {\n    \"taskType\": \"imageInference\",\n    \"model\": \"google:4@3\",\n    \"positivePrompt\": \"{{ $json.final_prompt }}\",\n    \"width\": {{ $json.width }},\n    \"height\": {{ $json.height }},\n    \"settings\": { \"temperature\": 0.72, \"topP\": 0.95, \"thinking\": \"HIGH\" },\n    \"providerSettings\": { \"google\": { \"safetyTolerance\": \"off\" } },\n    \"taskUUID\": \"{{ $json.taskUUID }}\",\n    \"outputType\": [\"URL\"],\n    \"outputFormat\": \"WEBP\",\n    \"outputQuality\": 90,\n    \"includeCost\": true,\n    \"deliveryMethod\": \"async\"\n  }\n]",
+        "options": {}
+      },
+      "id": "b199afc8-0706-415f-8680-f9d51eb77392",
+      "name": "Submit to RunWare",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        560
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "RUNWARE_CRED_PLACEHOLDER",
+          "name": "RunWare API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 50,
+        "unit": "seconds"
+      },
+      "id": "1e6d5118-deac-42f5-9d8b-35fc11d6aa00",
+      "name": "Wait 50s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1760,
+        560
+      ],
+      "webhookId": "af42f2a2-e7c3-4b8e-b389-e16b44e69d9c"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByFields",
+        "fieldsToMatchString": "clip",
+        "joinMode": "keepMatches",
+        "options": {}
+      },
+      "id": "ca8b9c1b-cb10-4d24-8584-f860f667b31d",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3520,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "name": "={{ $('Montar Timeline Shotstack').first().json.articleTitle }}.mp4",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1dzIJ2ugAgeF-cpXFcXDQ-EUP89awuzx2",
+          "cachedResultName": "Videos Curtos DJE"
+        },
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "id": "1460f6c5-8c2b-45c7-a21d-5966fc8f6864",
+      "name": "Upload pro Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        5720,
+        300
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "GDRIVE_CRED_PLACEHOLDER",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1EiEGtEGnLwqOr3OMs9LYItCT13Y9zLbY-i1M_TZ5QXo"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gid=0",
+          "cachedResultName": "Pagina1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Titulo dos Videos": "={{ $('Montar Timeline Shotstack').first().json.articleTitle }}",
+            "Links do Videos": "={{ $json.webViewLink || $json.webContentLink }}",
+            "Title": "={{ $('Montar Timeline Shotstack').first().json.articleTitle }}"
+          },
+          "matchingColumns": [
+            "Title"
+          ]
+        },
+        "options": {}
+      },
+      "id": "4174b95d-9f9e-49b4-985f-7ddeb5c4d583",
+      "name": "Atualizar Planilha",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        5940,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GSHEETS_CRED_PLACEHOLDER",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// === Agregar Tarefas ===\n// Coleta TODOS os taskUUID gerados (1 por clip) em UM unico item de controle.\n// Isso permite fazer o polling de TODAS as imagens de uma vez, sem perder itens\n// no padrao IF+Wait (que descartava clips prontos em rodadas diferentes).\nconst src = $('Parse Generated Prompts').all();\nconst tasks = [];\nfor (let i = 0; i < src.length; i++) {\n  const j = src[i].json || {};\n  tasks.push({\n    clip: Number(j.clip != null ? j.clip : (i + 1)),\n    taskUUID: j.taskUUID,\n    texto_narracao: j.texto_narracao || '',\n    articleTitle: j.articleTitle || '',\n    duration: Number(j.duration || 4)\n  });\n}\nreturn [{ json: { tasks: tasks, total: tasks.length } }];\n"
+      },
+      "id": "a1b2c3d4-0001-4a01-8a01-aggregartasks01",
+      "name": "Agregar Tarefas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.runware.ai/v1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(($('Agregar Tarefas').first().json.tasks || []).map(function(t){ return { taskType: 'getResponse', taskUUID: t.taskUUID }; })) }}",
+        "options": {}
+      },
+      "id": "a8373b0a-60a8-455e-8bad-1b4edab4c58b",
+      "name": "Verificar Imagens",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1980,
+        560
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "RUNWARE_CRED_PLACEHOLDER",
+          "name": "RunWare API"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// === Processar Polling ===\n// Le a resposta em LOTE do RunWare (getResponse de TODOS os taskUUID) e separa\n// quais imagens ja ficaram prontas (tem imageURL) e quais ainda estao pendentes.\n// Reconsulta TODOS os taskUUID a cada rodada (getResponse e idempotente: o RunWare\n// guarda o resultado), entao nao precisamos acumular estado entre as voltas do loop.\nconst resp = $input.first().json || {};\nlet data = [];\nif (Array.isArray(resp.data)) data = resp.data;\nelse if (resp.body && Array.isArray(resp.body.data)) data = resp.body.data;\nelse if (Array.isArray(resp)) data = resp;\n\nconst urlByUUID = {};\nfor (let i = 0; i < data.length; i++) {\n  const d = data[i] || {};\n  if (!d.taskUUID) continue;\n  let url = d.imageURL || d.imageUrl || '';\n  if (!url && Array.isArray(d.images) && d.images[0]) {\n    url = d.images[0].imageURL || d.images[0].imageUrl || '';\n  }\n  if (url) urlByUUID[d.taskUUID] = url;\n}\n\nconst tasks = ($('Agregar Tarefas').first().json.tasks) || [];\nconst ready = [];\nconst pending = [];\nfor (let i = 0; i < tasks.length; i++) {\n  const t = tasks[i];\n  const url = urlByUUID[t.taskUUID];\n  if (url) ready.push(Object.assign({}, t, { imageURL: url }));\n  else pending.push(t);\n}\n\nreturn [{\n  json: {\n    ready: ready,\n    pending: pending,\n    readyCount: ready.length,\n    pendingCount: pending.length,\n    poll_round: ($runIndex || 0)\n  }\n}];\n"
+      },
+      "id": "a1b2c3d4-0002-4a02-8a02-processpolling2",
+      "name": "Processar Polling",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-pending-zero-0001",
+              "leftValue": "={{ $json.pendingCount }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "cond-round-limit-0002",
+              "leftValue": "={{ $json.poll_round }}",
+              "rightValue": 18,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "df410c45-d005-453c-b851-ecac03f1e246",
+      "name": "Imagens Prontas?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 10,
+        "unit": "seconds"
+      },
+      "id": "54bdab28-a412-4bd8-b79a-3c06a024f2b2",
+      "name": "Wait 10s More",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2420,
+        780
+      ],
+      "webhookId": "dbc2f081-4feb-420c-8c3e-210dbb401f36"
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// === Distribuir Imagens ===\n// Converte o item de controle (com o array \"ready\") de volta em N itens,\n// um por clip pronto, em ordem crescente de clip. Cada item leva a imageURL\n// para o download e os metadados para o pareamento por clip no Merge.\nconst j = $input.first().json || {};\nconst ready = (j.ready || []).slice();\nready.sort(function (a, b) { return (Number(a.clip) || 0) - (Number(b.clip) || 0); });\nif (ready.length === 0) {\n  throw new Error('Distribuir Imagens: nenhuma imagem ficou pronta no RunWare apos o polling.');\n}\nreturn ready.map(function (t) {\n  return {\n    json: {\n      clip: Number(t.clip),\n      imageURL: t.imageURL,\n      texto_narracao: t.texto_narracao || '',\n      articleTitle: t.articleTitle || '',\n      duration: Number(t.duration || 4)\n    }\n  };\n});\n"
+      },
+      "id": "a1b2c3d4-0003-4a03-8a03-distribuirimg03",
+      "name": "Distribuir Imagens",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\n// === Baixar Foto (Run Once for Each Item) ===\n// Baixa a imagem gerada (URL publica do RunWare) para o binario \"foto\",\n// preservando o json (clip, texto, etc.) para o pareamento por clip no Merge.\n// Async via wrapper Promise manual sobre child_process.exec (nao bloqueia o event loop).\n// Sem modulos bloqueados e sem sequencias de escape em strings (paste-safe).\nconst fs = require('fs');\nconst { exec } = require('child_process');\nfunction execAsync(cmd, opts) {\n  return new Promise(function (resolve, reject) {\n    exec(cmd, opts, function (err, stdout, stderr) {\n      if (err) { reject(err); } else { resolve({ stdout: stdout, stderr: stderr }); }\n    });\n  });\n}\nconst TMP = '/tmp';\nconst UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';\nconst j = $input.item.json || {};\nconst clipNum = Number(j.clip) || (($itemIndex || 0) + 1);\nconst url = String(j.imageURL || '').trim();\nif (!url) {\n  return { json: Object.assign({}, j, { clip: clipNum, skipped: true }) };\n}\nconst imgPath = TMP + '/foto_' + clipNum + '.webp';\nawait execAsync('wget -q --user-agent=\"' + UA + '\" -O \"' + imgPath + '\" \"' + url + '\"', { timeout: 120000, maxBuffer: 1024 * 1024 * 64 });\nconst buf = fs.readFileSync(imgPath);\nreturn {\n  json: Object.assign({}, j, { clip: clipNum }),\n  binary: { foto: await this.helpers.prepareBinaryData(buf, 'foto_' + clipNum + '.webp', 'image/webp') }\n};\n"
+      },
+      "id": "a34e11b3-0a55-4726-9cd8-870195aa06af",
+      "name": "Baixar Foto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\n// === Marcar Audio (Run Once for Each Item) ===\n// O node de TTS (responseFormat=file) zera o json, deixando so o binario \"data\".\n// Aqui reanexamos o numero do clip (e metadados) usando o item pareado de \"item lists\",\n// para permitir o pareamento audio<->imagem por CLIP (e nao por posicao fragil).\nconst src = $('item lists').item.json || {};\nreturn {\n  json: {\n    clip: Number(src.clip),\n    texto_narracao: src.texto_narracao || '',\n    articleTitle: src.articleTitle || '',\n    duration: Number(src.duration || 4)\n  },\n  binary: $input.item.binary\n};\n"
+      },
+      "id": "a1b2c3d4-0004-4a04-8a04-marcaraudio004",
+      "name": "Marcar Audio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1700,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// === Concatenar Audio (Run Once for All Items) ===\n// Em ordem de clip, le os WAV (binary data) vindos do Merge, escreve em /tmp,\n// concatena tudo num unico MP3 (ffmpeg), calcula a duracao de cada clipe (ffprobe)\n// e os offsets cumulativos (start). Retorna scenes[] + binary data (narracao.mp3).\n// Async via wrapper Promise manual sobre child_process.exec (sem util, sem helpers).\nconst fs = require('fs');\nconst path = require('path');\nconst { exec } = require('child_process');\nfunction execAsync(cmd, opts) {\n  return new Promise(function (resolve, reject) {\n    exec(cmd, opts, function (err, stdout, stderr) {\n      if (err) { reject(err); } else { resolve({ stdout: stdout, stderr: stderr }); }\n    });\n  });\n}\nconst TMP = '/tmp';\nfunction resolverCaminho(bin) {\n  if (!bin) return null;\n  const id = bin.id ? String(bin.id).split(':').pop() : null;\n  const candidatos = [];\n  if (id) {\n    candidatos.push(\n      path.join('/home/node/.n8n/binaryData', id),\n      path.join('/home/node/.n8n/binaryData', id + '.bin'),\n      path.join('/data/.n8n/binaryData', id),\n      path.join('/tmp', id)\n    );\n  }\n  for (const c of candidatos) { try { if (fs.existsSync(c)) return c; } catch (e) {} }\n  return null;\n}\nasync function getBuf(idx, prop, bin) {\n  try {\n    const b = await this.helpers.getBinaryDataBuffer(idx, prop);\n    if (b && b.length) return b;\n  } catch (e) {}\n  const p = resolverCaminho(bin && bin[prop]);\n  if (p) { try { return fs.readFileSync(p); } catch (e) {} }\n  return null;\n}\nconst items = $input.all();\nconst articleTitle = ($input.first().json && $input.first().json.articleTitle) || 'DJE';\nconst clips = [];\nfor (let i = 0; i < items.length; i++) {\n  const j = items[i].json || {};\n  const bin = items[i].binary || {};\n  const clipNum = Number(j.clip) || (i + 1);\n  const buf = await getBuf.call(this, i, 'data', bin);\n  if (!buf || !buf.length) continue;\n  clips.push({\n    clip: clipNum,\n    text: j.texto_narracao || '',\n    imageUrl: j.imageURL || j.imageUrl || ''\n    , buf: buf\n  });\n}\nif (clips.length === 0) {\n  throw new Error('Concatenar Audio: nenhum audio WAV recebido do Merge.');\n}\nclips.sort(function (a, b) { return (a.clip || 0) - (b.clip || 0); });\nconst wavPaths = [];\nfor (let k = 0; k < clips.length; k++) {\n  const wp = TMP + '/hf_audio_' + clips[k].clip + '.wav';\n  fs.writeFileSync(wp, clips[k].buf);\n  wavPaths.push(wp);\n}\nconst durations = [];\nfor (let k = 0; k < wavPaths.length; k++) {\n  let dur = 0;\n  try {\n    const probe = await execAsync('ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"' + wavPaths[k] + '\"', { timeout: 60000 });\n    const d = parseFloat(String(probe.stdout).trim());\n    if (!isNaN(d) && d > 0) dur = d;\n  } catch (e) {}\n  if (!dur) dur = 4;\n  durations.push(dur);\n}\nconst mp3Path = TMP + '/narracao_hf.mp3';\nlet inputs = '';\nlet filt = '';\nfor (let k = 0; k < wavPaths.length; k++) {\n  inputs += ' -i \"' + wavPaths[k] + '\"';\n  filt += '[' + k + ':a]';\n}\nfilt += 'concat=n=' + wavPaths.length + ':v=0:a=1[out]';\nawait execAsync('ffmpeg -y' + inputs + ' -filter_complex \"' + filt + '\" -map \"[out]\" -c:a libmp3lame -b:a 192k \"' + mp3Path + '\"', { timeout: 240000, maxBuffer: 1024 * 1024 * 64 });\nconst scenes = [];\nlet acc = 0;\nfor (let k = 0; k < clips.length; k++) {\n  const d = durations[k];\n  scenes.push({\n    index: clips[k].clip,\n    imageUrl: clips[k].imageUrl,\n    text: clips[k].text,\n    start: Math.round(acc * 1000) / 1000,\n    duration: Math.round(d * 1000) / 1000\n  });\n  acc += d;\n}\nconst total = Math.round(acc * 1000) / 1000;\nconst mp3Buf = fs.readFileSync(mp3Path);\nreturn [{\n  json: { scenes: scenes, total: total, articleTitle: articleTitle },\n  binary: { data: await this.helpers.prepareBinaryData(mp3Buf, 'narracao.mp3', 'audio/mpeg') }\n}];"
+      },
+      "id": "hf000001-0001-4a01-8a01-concatenaraudio",
+      "name": "Concatenar Audio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3740,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-zone-0001",
+              "name": "bunnyStorageZone",
+              "value": "dje-audios",
+              "type": "string"
+            },
+            {
+              "id": "cfg-shost-0002",
+              "name": "bunnyStorageHost",
+              "value": "br.storage.bunnycdn.com",
+              "type": "string"
+            },
+            {
+              "id": "cfg-phost-0003",
+              "name": "bunnyPullHost",
+              "value": "dje-audios.b-cdn.net",
+              "type": "string"
+            },
+            {
+              "id": "cfg-zip-0004",
+              "name": "hyperframesZipUrl",
+              "value": "https://dje-audios.b-cdn.net/composicao-dje.zip",
+              "type": "string"
+            },
+            {
+              "id": "cfg-aname-0005",
+              "name": "audioFileName",
+              "value": "={{ 'narracao_' + ($json.articleTitle || 'dje').toString().replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40) + '_' + $now.toMillis() + '.mp3' }}",
+              "type": "string"
+            },
+            {
+              "id": "cfg-ssenv-0006",
+              "name": "shotstackEnv",
+              "value": "stage",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "hf000002-0002-4a02-8a02-confignode00001",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3960,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://{{ $('Config').first().json.bunnyStorageHost }}/{{ $('Config').first().json.bunnyStorageZone }}/{{ $('Config').first().json.audioFileName }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "AccessKey",
+              "value": "YOUR_BUNNY_STORAGE_ACCESSKEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/octet-stream"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "id": "hf000003-0003-4a03-8a03-uploadaudiobunny",
+      "name": "Upload Audio Bunny",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4180,
+        400
+      ],
+      "notes": "PUT no Bunny Storage usando header inline (sem credencial). Cole a AccessKey real da Storage Zone 'dje-audios' no header AccessKey (substitua YOUR_BUNNY_STORAGE_ACCESSKEY). ATENCAO: a AccessKey e SECRETA - nao versione/commite com o valor real e, se ela ja vazou, regenere-a no painel do Bunny. Corpo binario (campo data) = narracao.mp3."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// === Montar Timeline Shotstack (Run Once for All Items) ===\n// Le scenes[]/total/articleTitle de 'Concatenar Audio' e monta a timeline da Shotstack Edit API.\n// Tracks (z-order topo->fundo): [legendas, imagens, audio]. Ken Burns alternado por clipe.\nconst ca = $('Concatenar Audio').first().json || {};\nconst cfg = $('Config').first().json || {};\nconst scenes = ca.scenes || [];\nconst total = Number(ca.total || 0);\nconst articleTitle = ca.articleTitle || 'DJE';\nconst pullHost = String(cfg.bunnyPullHost || '').replace(/^https?:\\/\\//, '').replace(/\\/$/, '');\nconst audioFileName = cfg.audioFileName || 'narracao.mp3';\nconst audioUrl = 'https://' + pullHost + '/' + audioFileName;\nlet musicUrl = '';\ntry { musicUrl = String($('Formulario de Video').first().json['Musica de Fundo (URL)'] || '').trim(); } catch (e) { musicUrl = ''; }\nconst effects = ['zoomIn', 'zoomOut', 'slideLeft', 'slideRight'];\nconst imageClips = [];\nconst captionClips = [];\nfor (let i = 0; i < scenes.length; i++) {\n  const sc = scenes[i] || {};\n  const start = Number(sc.start || 0);\n  const length = Number(sc.duration || 4);\n  imageClips.push({\n    asset: { type: 'image', src: sc.imageUrl || '' },\n    start: start,\n    length: length,\n    effect: effects[i % effects.length],\n    fit: 'cover',\n    transition: { in: 'fade', out: 'fade' }\n  });\n  captionClips.push({\n    asset: { type: 'title', text: sc.text || '', style: 'subtitle', size: 'medium', background: '#000000', color: '#ffffff' },\n    start: start,\n    length: length,\n    position: 'bottom',\n    offset: { y: 0.10 },\n    transition: { in: 'fade', out: 'fade' }\n  });\n}\nconst audioClip = { asset: { type: 'audio', src: audioUrl }, start: 0, length: total };\nconst timeline = { background: '#000000', tracks: [ { clips: captionClips }, { clips: imageClips }, { clips: [ audioClip ] } ] };\nif (musicUrl) { timeline.soundtrack = { src: musicUrl, effect: 'fadeInFadeOut', volume: 0.15 }; }\nconst output = { format: 'mp4', size: { width: 1080, height: 1920 }, fps: 30 };\nreturn [{ json: { renderBody: { timeline: timeline, output: output }, articleTitle: articleTitle, audioUrl: audioUrl } }];"
+      },
+      "id": "ss000001-0001-4a01-8a01-montartimeline00",
+      "name": "Montar Timeline Shotstack",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.shotstack.io/edit/{{ $('Config').first().json.shotstackEnv }}/render",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-api-key",
+              "value": "YOUR_SHOTSTACK_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.renderBody) }}",
+        "options": {}
+      },
+      "id": "ss000002-0002-4a02-8a02-criarrendershots",
+      "name": "Criar Render Shotstack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4620,
+        400
+      ],
+      "notes": "POST Shotstack Edit API. A chave vai como header inline x-api-key (sem credencial). Cole a chave real da Shotstack no header x-api-key (substitua YOUR_SHOTSTACK_API_KEY) - use a chave de STAGE para testar de graca (shotstackEnv=stage) e a chave de PRODUCAO para v1. NUNCA versione/commite o valor real. Resposta: { success, response: { id, message } }."
+    },
+    {
+      "parameters": {
+        "amount": 8,
+        "unit": "seconds"
+      },
+      "id": "ss000003-0003-4a03-8a03-waitrendershots0",
+      "name": "Wait Render Shotstack",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        4840,
+        400
+      ],
+      "webhookId": "ss-wait-render-0001-2222-3333-444455556666"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.shotstack.io/edit/{{ $('Config').first().json.shotstackEnv }}/render/{{ $('Criar Render Shotstack').first().json.response.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "YOUR_SHOTSTACK_API_KEY"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ss000004-0004-4a04-8a04-consultarrenders",
+      "name": "Consultar Render Shotstack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5060,
+        400
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "GET status do render Shotstack. A chave vai como header inline x-api-key (substitua YOUR_SHOTSTACK_API_KEY) - use a mesma chave (stage ou v1) do node Criar Render. NUNCA versione/commite o valor real. response.status: queued|fetching|rendering|saving|done|failed. Quando done, response.url traz o MP4 final."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-ss-done-0001",
+              "leftValue": "={{ $json.response.status }}",
+              "rightValue": "done",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ss000005-0005-4a05-8a05-renderprontoss01",
+      "name": "Render Pronto?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        5280,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-ss-failed-0001",
+              "leftValue": "={{ $json.response.status }}",
+              "rightValue": "failed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ss000006-0006-4a06-8a06-renderfalhouss01",
+      "name": "Render Falhou?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        5500,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "err-ss-msg-0001",
+              "name": "erroRender",
+              "value": "={{ $json.response.error || 'Render Shotstack falhou' }}",
+              "type": "string"
+            },
+            {
+              "id": "err-ss-id-0002",
+              "name": "renderId",
+              "value": "={{ $('Criar Render Shotstack').first().json.response.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "ss000007-0007-4a07-8a07-errorenderss0001",
+      "name": "Erro Render",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        5720,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Consultar Render Shotstack').first().json.response.url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "id": "ss000008-0008-4a08-8a08-baixarvideoss001",
+      "name": "Baixar Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5500,
+        300
+      ],
+      "notes": "Baixa o response.url (MP4 final da Shotstack) como binario (campo data)."
+    }
+  ],
+  "connections": {
+    "Formulario de Video": {
+      "main": [
+        [
+          {
+            "node": "Parse JSON Entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse JSON Entrada": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Agente Diretor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente Diretor": {
+      "main": [
+        [
+          {
+            "node": "Parser Roteiro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser Roteiro": {
+      "main": [
+        [
+          {
+            "node": "item lists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "item lists": {
+      "main": [
+        [
+          {
+            "node": "Gemini TTS (Orus)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Parse Generated Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar Audio": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Generated Prompts": {
+      "main": [
+        [
+          {
+            "node": "Submit to RunWare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit to RunWare": {
+      "main": [
+        [
+          {
+            "node": "Agregar Tarefas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agregar Tarefas": {
+      "main": [
+        [
+          {
+            "node": "Wait 50s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 50s": {
+      "main": [
+        [
+          {
+            "node": "Verificar Imagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Imagens": {
+      "main": [
+        [
+          {
+            "node": "Processar Polling",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Polling": {
+      "main": [
+        [
+          {
+            "node": "Imagens Prontas?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Imagens Prontas?": {
+      "main": [
+        [
+          {
+            "node": "Distribuir Imagens",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 10s More",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 10s More": {
+      "main": [
+        [
+          {
+            "node": "Verificar Imagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Distribuir Imagens": {
+      "main": [
+        [
+          {
+            "node": "Baixar Foto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar Foto": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Concatenar Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload pro Drive": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Planilha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini TTS (Orus)": {
+      "main": [
+        [
+          {
+            "node": "PCM para WAV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PCM para WAV": {
+      "main": [
+        [
+          {
+            "node": "Marcar Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Concatenar Audio": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Upload Audio Bunny",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Audio Bunny": {
+      "main": [
+        [
+          {
+            "node": "Montar Timeline Shotstack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar Timeline Shotstack": {
+      "main": [
+        [
+          {
+            "node": "Criar Render Shotstack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Render Shotstack": {
+      "main": [
+        [
+          {
+            "node": "Wait Render Shotstack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Render Shotstack": {
+      "main": [
+        [
+          {
+            "node": "Consultar Render Shotstack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Render Shotstack": {
+      "main": [
+        [
+          {
+            "node": "Render Pronto?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render Pronto?": {
+      "main": [
+        [
+          {
+            "node": "Baixar Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Render Falhou?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render Falhou?": {
+      "main": [
+        [
+          {
+            "node": "Erro Render",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait Render Shotstack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar Video": {
+      "main": [
+        [
+          {
+            "node": "Upload pro Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "dje-facebook-ads-workflow",
+    "templateCredsSetupCompleted": false
+  }
+}
